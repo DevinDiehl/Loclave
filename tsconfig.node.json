@@ -4,7 +4,9 @@
               "src/main/**/*",
               "src/preload/**/*",
               "src/db/**/*",
-              "src/cryptography/**/*"],
+              "src/cryptography/**/*",
+              "src/types/**/*"
+            ],
   "compilerOptions": {
     "composite": true,
     "types": ["electron-vite/node"]

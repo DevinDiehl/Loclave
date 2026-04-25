@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import { Folder } from '../types/types'
 export interface Api {
   isFirstLaunch:      ()                    => Promise<boolean>
   setupMasterPassword:(password: string)    => Promise<void>
@@ -7,12 +8,12 @@ export interface Api {
   logout:             ()                    => Promise<void>
   isUnlocked:         ()                    => Promise<boolean>
   setLockTimeout:     (ms: number)          => Promise<void>
+  getAllFolders: ()                         => Promise<Folder[]>
+  createFolder: (name: string)             => Promise<{ id: number }>
+  updateFolder: (id: number, name: string) => Promise<{ success: boolean }>
+  deleteFolder: (id: number)               => Promise<{ success: boolean }>
 
-  // Activity — call this from the renderer on any user interaction
-  // so the main process can reset the idle timer
   reportActivity:     ()                    => void
-
-  // Events — renderer listens for lock events pushed from main
   onSessionLocked:    (cb: () => void)      => () => void
 }
 
@@ -53,14 +54,28 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.send('user:activity')
   },
 
-  /**
-   * Subscribe to session lock events pushed from the main process.
-   * @returns an unsubscribe function — call it in useEffect cleanup.
-   */
   onSessionLocked: (cb: () => void): (() => void) => {
     const handler = () => cb()
     ipcRenderer.on('session:locked', handler)
     return () => ipcRenderer.removeListener('session:locked', handler)
+  },
+
+   getAllFolders: async () => {
+    return await ipcRenderer.invoke('folders:getAll')
+  },
+ 
+  createFolder: async (name: string) => {
+    const res = await ipcRenderer.invoke('folders:create', name)
+    if (res?.error) throw new Error(res.error)
+    return res
+  },
+ 
+  updateFolder: async (id: number, name: string) => {
+    return await ipcRenderer.invoke('folders:update', id, name)
+  },
+ 
+  deleteFolder: async (id: number) => {
+    return await ipcRenderer.invoke('folders:delete', id)
   },
 
 } satisfies Api)

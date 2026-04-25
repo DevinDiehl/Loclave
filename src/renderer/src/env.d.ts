@@ -11,5 +11,9 @@ interface Window {
     setLockTimeout:      (ms: number)       => Promise<void>
     reportActivity:      ()                 => void
     onSessionLocked:     (cb: () => void)   => () => void
+    getAllFolders: ()                         => Promise<Folder[]>
+    createFolder: (name: string)             => Promise<{ id: number }>
+    updateFolder: (id: number, name: string) => Promise<{ success: boolean }>
+    deleteFolder: (id: number)               => Promise<{ success: boolean }>
   }
 }

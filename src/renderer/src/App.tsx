@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import UnlockScreen from './components/UnlockScreen'
+import Sidebar from './components/Sidebar'
 
 export default function App() {
-  const [checking,      setChecking]      = useState(true)   // initial load
+  const [checking,      setChecking]      = useState(true)
   const [locked,        setLocked]        = useState(true)
   const [isFirstLaunch, setIsFirstLaunch] = useState(false)
-
+  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null)
   useEffect(() => {
     async function init() {
       const first     = await window.api.isFirstLaunch()
@@ -69,23 +70,32 @@ export default function App() {
     )
   }
 
-  // ── Main vault UI (placeholder until Sidebar + EntryList are built) ────────
-  return (
-    <div style={mainStyles.root}>
-      <p style={mainStyles.placeholder}>
-        🔓 Vault unlocked — Sidebar &amp; EntryList coming next.
+return (
+  <div style={{
+    display:    'flex',
+    flexDirection: 'row',  
+    height:     '100vh',
+    width:      '100vw',
+    background: '#0d0d12',
+    overflow:   'hidden',
+  }}>
+    <Sidebar
+      selectedFolderId={selectedFolderId}
+      onSelectFolder={setSelectedFolderId}
+    />
+    <main style={{
+      flex:       1,
+      overflow:   'hidden',
+      display:    'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+    }}>
+      <p style={{ color: 'rgba(255,255,255,0.2)', fontFamily: 'monospace', fontSize: '13px' }}>
+        Select a folder to view entries
       </p>
-      <button
-        style={mainStyles.lockBtn}
-        onClick={async () => {
-          await window.api.lock()
-          setLocked(true)
-        }}
-      >
-        Lock Vault
-      </button>
-    </div>
-  )
+    </main>
+  </div>
+)
 }
 
 
@@ -100,32 +110,32 @@ function SplashLoader() {
   )
 }
 
-const mainStyles: Record<string, React.CSSProperties> = {
-  root: {
-    display:        'flex',
-    flexDirection:  'column',
-    alignItems:     'center',
-    justifyContent: 'center',
-    height:         '100vh',
-    background:     '#0d0d12',
-    gap:            '20px',
-  },
-  placeholder: {
-    color:       'rgba(255,255,255,0.5)',
-    fontFamily:  'monospace',
-    fontSize:    '14px',
-  },
-  lockBtn: {
-    padding:      '10px 24px',
-    background:   'rgba(168,148,255,0.15)',
-    border:       '1px solid rgba(168,148,255,0.3)',
-    borderRadius: '8px',
-    color:        'rgba(168,148,255,0.9)',
-    fontFamily:   'monospace',
-    fontSize:     '13px',
-    cursor:       'pointer',
-  },
-}
+// const mainStyles: Record<string, React.CSSProperties> = {
+//   root: {
+//     display:        'flex',
+//     flexDirection:  'column',
+//     alignItems:     'center',
+//     justifyContent: 'center',
+//     height:         '100vh',
+//     background:     '#0d0d12',
+//     gap:            '20px',
+//   },
+//   placeholder: {
+//     color:       'rgba(255,255,255,0.5)',
+//     fontFamily:  'monospace',
+//     fontSize:    '14px',
+//   },
+//   lockBtn: {
+//     padding:      '10px 24px',
+//     background:   'rgba(168,148,255,0.15)',
+//     border:       '1px solid rgba(168,148,255,0.3)',
+//     borderRadius: '8px',
+//     color:        'rgba(168,148,255,0.9)',
+//     fontFamily:   'monospace',
+//     fontSize:     '13px',
+//     cursor:       'pointer',
+//   },
+// }
 
 const splashStyles: Record<string, React.CSSProperties> = {
   root: {

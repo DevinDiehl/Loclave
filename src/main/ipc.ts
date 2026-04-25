@@ -12,7 +12,7 @@ import {
   setLockTimeout,
   resetLockTimer,
 } from '../cryptography/session'
-
+import {registerFolderHandlers} from './ipc-folders'
 /**
  * Call this once from main.ts after the BrowserWindow is created.
  * Registers all IPC handlers and wires up the lock callback.
@@ -117,4 +117,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     db.setSetting('lock_timeout_ms', String(ms))
     return { success: true }
   })
+
+  registerFolderHandlers()
+
 }
