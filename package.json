@@ -23,8 +23,8 @@
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
+    "@node-rs/argon2": "^2.0.2",
     "@tailwindcss/vite": "^4.2.4",
-    "argon2": "^0.44.0",
     "better-sqlite3": "^12.9.0",
     "electron-updater": "^6.3.9",
     "keytar": "^7.9.0"
