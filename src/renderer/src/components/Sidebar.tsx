@@ -1,13 +1,9 @@
 
 
 import { useState, useEffect, useRef } from 'react'
-import { Folder } from '../../../types/types'
+import { Folder, SidebarProps } from '../../../types/types'
 
-interface SidebarProps {
-  selectedFolderId: number | null
-  onSelectFolder:   (id: number | null) => void
-  onFoldersChange?:  () => void   
-}
+
 
 export default function Sidebar({ selectedFolderId, onSelectFolder, onFoldersChange }: SidebarProps) {
   const [folders,       setFolders]       = useState<Folder[]>([])

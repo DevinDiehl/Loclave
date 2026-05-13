@@ -1,59 +1,15 @@
-
-/**
- * Usage in main.ts:
- *   import * as db from './db';
- *   db.init();
- */
-
 import Database, { Database as DatabaseType, Statement } from 'better-sqlite3';
 import path from 'path';
 import { app } from 'electron';
+import { Folder,
+         Entry,
+         CreateEntryInput,
+         UpdateEntryInput, 
+         CreateFolderInput, 
+         UpdateFolderInput  
+        } 
+        from '../types/types';
 
-export interface Folder {
-  id:          number;
-  name:        string;
-  icon:        string;
-  created_at:  string;
-  updated_at:  string;
-  entry_count?: number; 
-}
-
-export interface Entry {
-  id:          number;
-  folder_id:   number;
-  title:       string;
-  username:    string | null;
-  password:    string;           
-  url:         string | null;
-  notes:       string | null;
-  favorite:    0 | 1;
-  created_at:  string;
-  updated_at:  string;
-  folder_name?: string;          
-}
-
-export interface CreateEntryInput {
-  folderId:  number;
-  title:     string;
-  username:  string;
-  password:  string;           
-  url?:      string | null;
-  notes?:    string | null;
-  favorite?: 0 | 1;
-}
-
-export interface UpdateEntryInput extends CreateEntryInput {
-  id: number;
-}
-
-export interface CreateFolderInput {
-  name: string;
-  icon?: string;
-}
-
-export interface UpdateFolderInput extends CreateFolderInput {
-  id: number;
-}
 
 
 let db: DatabaseType | null = null;
@@ -108,8 +64,6 @@ function createTables(): void {
     );
   `);
 }
-
-// ─── Prepared Statement Cache ─────────────────────────────────────────────────
 
 const stmts: Record<string, Statement> = {};
 
@@ -214,8 +168,6 @@ export function getFavoriteEntries(): Entry[] {
 /**
  * Creates a new password entry.
  *
- * IMPORTANT: Always pass an already-encrypted string as `password`.
- * Never store plain text.
  *
  * @returns ID of the new entry
  */
@@ -325,7 +277,6 @@ export function moveEntriesToFolder(fromFolderId: number, toFolderId: number): v
 
   run();
 }
-
 
 /**
  * @reads a setting value by key. Returns undefined if not set.

@@ -81,7 +81,6 @@ export function deriveKey(
  * Unlocks the app — sets the in-memory session key, persists it to
  * the Keychain, and starts the idle lock timer.
  *
- * Call this after successfully verifying the master password.
  *
  * @param key  Derived key buffer from deriveKey()
  */
@@ -118,7 +117,6 @@ export async function logoutSession(): Promise<void> {
 
 /**
  * @returns the current session key, or null if locked.
- * Pass this into encryptPassword() / decryptPassword() in encryption.ts.
  */
 export function getSessionKey(): Buffer | null {
   return sessionKey;
@@ -133,7 +131,7 @@ export function isUnlocked(): boolean {
 
 /**
  * Registers a callback that fires whenever the app locks (idle timeout
- * or explicit lock). Use this in main.ts to notify the renderer.
+ * or explicit lock). 
  *
  * @param cb  Function to call on lock
  */
@@ -143,7 +141,6 @@ export function onLock(cb: LockCallback): void {
 
 /**
  * Sets the idle timeout duration.
- * Call on startup after reading the user's preference from settings.
  *
  * @param ms  Milliseconds before auto-lock
  */
@@ -153,7 +150,6 @@ export function setLockTimeout(ms: number): void {
 
 /**
  * Resets the idle timer back to the full duration.
- * Call this from main.ts on any user activity (mouse, keyboard, IPC).
  */
 export function resetLockTimer(): void {
   clearLockTimer();

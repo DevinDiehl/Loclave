@@ -1,8 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-interface UnlockScreenProps {
-  isFirstLaunch: boolean
-  onUnlocked: () => void
-}
+import { UnlockScreenProps } from '../../../types/types'
 
 export default function UnlockScreen({ isFirstLaunch, onUnlocked }: UnlockScreenProps) {
   const [password, setPassword]           = useState('')

@@ -1,19 +1,7 @@
 
 
 import { useState, useEffect, useRef } from 'react'
-import type { Entry, Folder } from '../../../types/types'
-
-// ─── Props ────────────────────────────────────────────────────────────────────
-
-interface EntryFormProps {
-  entry:           Entry | null      // null = creating new, Entry = editing
-  folders:         Folder[]
-  defaultFolderId: number | null
-  onSave:          () => void
-  onCancel:        () => void
-}
-
-// ─── Component ────────────────────────────────────────────────────────────────
+import type { EntryFormProps} from '../../../types/types'
 
 export default function EntryForm({
   entry,

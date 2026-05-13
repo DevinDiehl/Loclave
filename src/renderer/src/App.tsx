@@ -126,33 +126,6 @@ function SplashLoader() {
   )
 }
 
-// const mainStyles: Record<string, React.CSSProperties> = {
-//   root: {
-//     display:        'flex',
-//     flexDirection:  'column',
-//     alignItems:     'center',
-//     justifyContent: 'center',
-//     height:         '100vh',
-//     background:     '#0d0d12',
-//     gap:            '20px',
-//   },
-//   placeholder: {
-//     color:       'rgba(255,255,255,0.5)',
-//     fontFamily:  'monospace',
-//     fontSize:    '14px',
-//   },
-//   lockBtn: {
-//     padding:      '10px 24px',
-//     background:   'rgba(168,148,255,0.15)',
-//     border:       '1px solid rgba(168,148,255,0.3)',
-//     borderRadius: '8px',
-//     color:        'rgba(168,148,255,0.9)',
-//     fontFamily:   'monospace',
-//     fontSize:     '13px',
-//     cursor:       'pointer',
-//   },
-// }
-
 const splashStyles: Record<string, React.CSSProperties> = {
   root: {
     display:        'flex',

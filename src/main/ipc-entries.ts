@@ -1,10 +1,3 @@
-/**
- * ipc-entries.ts — Entry IPC Handlers
- *
- * Add registerEntryHandlers() call inside registerIpcHandlers() in ipc.ts.
- * Place in: src/main/ipc-entries.ts
- */
-
 import { ipcMain }  from 'electron'
 import * as db      from '../db/db'
 import { getSessionKey }           from '../cryptography/session'

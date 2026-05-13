@@ -13,12 +13,12 @@ function createWindow(): void {
     minWidth:        700,
     minHeight:       500,
     show:            false,
-    titleBarStyle:   'hiddenInset',   // native Mac traffic lights
+    titleBarStyle:   'hiddenInset',   
     backgroundColor: '#0d0d12',
     webPreferences: {
       preload:          join(__dirname, '../preload/index.js'),
-      contextIsolation: true,          // REQUIRED for security
-      nodeIntegration:  false,         // REQUIRED for security
+      contextIsolation: true,
+      nodeIntegration:  false,         
       sandbox:          false,
     },
   })
@@ -30,14 +30,12 @@ function createWindow(): void {
     return { action: 'deny' }
   })
 
-  // Dev: load Vite dev server. Prod: load built index.html
   if (!app.isPackaged && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
 
-  // Register all IPC handlers
   registerIpcHandlers(mainWindow)
 }
 

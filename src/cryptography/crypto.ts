@@ -1,10 +1,6 @@
 
 import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
-export interface EncryptedPayload {
-  iv:         string;
-  authTag:    string;
-  ciphertext: string;
-}
+import { EncryptedPayload } from '../types/types';
 
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 16;

@@ -1,17 +1,8 @@
 
 
 import { useState, useEffect, useCallback } from 'react'
-import type { Entry, Folder } from '../../../types/types'
+import type { Entry, EntryListProps } from '../../../types/types'
 import EntryForm from './EntryForm'
-
-// ─── Props ────────────────────────────────────────────────────────────────────
-
-interface EntryListProps {
-  selectedFolderId: number | null
-  folders:          Folder[]
-}
-
-// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function EntryList({ selectedFolderId, folders }: EntryListProps) {
   const [entries,      setEntries]      = useState<Entry[]>([])
