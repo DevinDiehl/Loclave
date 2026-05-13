@@ -62,17 +62,32 @@ export default function UnlockScreen({ isFirstLaunch, onUnlocked }: UnlockScreen
       setError('Something went wrong. Please try again.')
       setLoading(false)
     }
+
+
+
   }
+    function DragBar() {
+  return (
+    <div
+      style={{
+        height:          '28px',
+        width:           '100%',
+        flexShrink:      0,
+        WebkitAppRegion: 'drag',
+      } as React.CSSProperties}
+    />
+  )
+}
 
   return (
     <div style={styles.root}>
+      
       {/* Ambient background blobs */}
       <div style={styles.blobTopLeft} />
       <div style={styles.blobBottomRight} />
 
       {/* Noise texture overlay */}
       <div style={styles.noise} />
-
       {/* Card */}
       <div style={{
         ...styles.card,

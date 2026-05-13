@@ -1,12 +1,15 @@
 import { useState, useEffect, useCallback } from 'react'
 import UnlockScreen from './components/UnlockScreen'
 import Sidebar from './components/Sidebar'
+import EntryList from './components/EntryList'
+import { Folder } from 'src/types/types'
 
 export default function App() {
   const [checking,      setChecking]      = useState(true)
   const [locked,        setLocked]        = useState(true)
   const [isFirstLaunch, setIsFirstLaunch] = useState(false)
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null)
+  const [folders, setFolders] = useState<Folder[]>([])
   useEffect(() => {
     async function init() {
       const first     = await window.api.isFirstLaunch()
@@ -23,6 +26,15 @@ export default function App() {
   useEffect(() => {
     return window.api.onSessionLocked(() => setLocked(true))
   }, [])
+
+   async function loadFolders() {
+    const data = await window.api.getAllFolders()
+    setFolders(data)
+  }
+
+  useEffect(() => {
+    if (!locked) loadFolders()
+  }, [locked])
 
   const reportActivity = useCallback(() => {
     window.api.reportActivity()
@@ -60,44 +72,48 @@ export default function App() {
 
   if (locked) {
     return (
-      <UnlockScreen
-        isFirstLaunch={isFirstLaunch}
-        onUnlocked={() => {
-          setLocked(false)
-          setIsFirstLaunch(false)
-        }}
-      />
+      <div>       
+        <UnlockScreen
+          isFirstLaunch={isFirstLaunch}
+          onUnlocked={() => {
+            setLocked(false)
+            setIsFirstLaunch(false)
+          }}
+        />
+      </div>
     )
   }
 
 return (
-  <div style={{
-    display:    'flex',
-    flexDirection: 'row',  
-    height:     '100vh',
-    width:      '100vw',
-    background: '#0d0d12',
-    overflow:   'hidden',
-  }}>
+  <div style={{ display: 'flex', height: '100vh', width: '100vw', background: '#0d0d12', overflow: 'hidden' }}>
+    
     <Sidebar
       selectedFolderId={selectedFolderId}
       onSelectFolder={setSelectedFolderId}
+      onFoldersChange={loadFolders}   // re-sync when folders are added/deleted
     />
-    <main style={{
-      flex:       1,
-      overflow:   'hidden',
-      display:    'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-    }}>
-      <p style={{ color: 'rgba(255,255,255,0.2)', fontFamily: 'monospace', fontSize: '13px' }}>
-        Select a folder to view entries
-      </p>
+    <main style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      <DragBar/>
+      <EntryList
+        selectedFolderId={selectedFolderId}
+        folders={folders}
+      />
     </main>
   </div>
 )
 }
-
+function DragBar() {
+  return (
+    <div
+      style={{
+        height:          '28px',
+        width:           '100%',
+        flexShrink:      0,
+        WebkitAppRegion: 'drag',
+      } as React.CSSProperties}
+    />
+  )
+}
 
 function SplashLoader() {
   return (

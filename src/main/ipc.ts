@@ -13,6 +13,7 @@ import {
   resetLockTimer,
 } from '../cryptography/session'
 import {registerFolderHandlers} from './ipc-folders'
+import {registerEntryHandlers} from './ipc-entries'
 /**
  * Call this once from main.ts after the BrowserWindow is created.
  * Registers all IPC handlers and wires up the lock callback.
@@ -119,5 +120,6 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
   })
 
   registerFolderHandlers()
+  registerEntryHandlers()
 
 }

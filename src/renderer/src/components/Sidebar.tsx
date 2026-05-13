@@ -6,9 +6,10 @@ import { Folder } from '../../../types/types'
 interface SidebarProps {
   selectedFolderId: number | null
   onSelectFolder:   (id: number | null) => void
+  onFoldersChange?:  () => void   
 }
 
-export default function Sidebar({ selectedFolderId, onSelectFolder }: SidebarProps) {
+export default function Sidebar({ selectedFolderId, onSelectFolder, onFoldersChange }: SidebarProps) {
   const [folders,       setFolders]       = useState<Folder[]>([])
   const [collapsed,     setCollapsed]     = useState(false)
   const [creating,      setCreating]      = useState(false)
@@ -52,6 +53,7 @@ export default function Sidebar({ selectedFolderId, onSelectFolder }: SidebarPro
       setCreating(false)
       setNewName('')
       await loadFolders()
+      onFoldersChange?.()   
     } catch (err: unknown) {
       if (err instanceof Error && err.message?.includes('UNIQUE')) {
         setError('A folder with that name already exists.')
@@ -74,6 +76,7 @@ export default function Sidebar({ selectedFolderId, onSelectFolder }: SidebarPro
       await window.api.deleteFolder(id)
       if (selectedFolderId === id) onSelectFolder(null)
       await loadFolders()
+      onFoldersChange?.()
     } catch {
       console.error('Failed to delete folder')
     } finally {

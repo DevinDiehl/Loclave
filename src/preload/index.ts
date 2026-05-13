@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { Folder } from '../types/types'
+import { Entry, Folder } from '../types/types'
 export interface Api {
   isFirstLaunch:      ()                    => Promise<boolean>
   setupMasterPassword:(password: string)    => Promise<void>
@@ -12,9 +12,24 @@ export interface Api {
   createFolder: (name: string)             => Promise<{ id: number }>
   updateFolder: (id: number, name: string) => Promise<{ success: boolean }>
   deleteFolder: (id: number)               => Promise<{ success: boolean }>
-
   reportActivity:     ()                    => void
   onSessionLocked:    (cb: () => void)      => () => void
+  getAllEntries:       ()                          => Promise<Entry[]>
+  getEntriesByFolder: (folderId: number)           => Promise<Entry[]>
+  searchEntries:      (query: string)              => Promise<Entry[]>
+  createEntry:        (input: {
+    folderId: number; title: string; username: string
+    password: string; url: string | null; notes: string | null
+  })                                               => Promise<{ id: number }>
+  updateEntry:        (input: {
+    id: number; folderId: number; title: string; username: string
+    password: string; url: string | null; notes: string | null; favorite: 0 | 1
+  })                                               => Promise<{ success: boolean }>
+  deleteEntry:        (id: number)                 => Promise<{ success: boolean }>
+  toggleFavorite:     (id: number)                 => Promise<{ success: boolean }>
+  encryptPassword:    (plaintext: string)           => Promise<string>
+  decryptPassword:    (stored: string)              => Promise<string>
+
 }
 
 contextBridge.exposeInMainWorld('api', {
@@ -76,6 +91,57 @@ contextBridge.exposeInMainWorld('api', {
  
   deleteFolder: async (id: number) => {
     return await ipcRenderer.invoke('folders:delete', id)
+  },
+  getAllEntries: async () => {
+    return await ipcRenderer.invoke('entries:getAll')
+  },
+ 
+  getEntriesByFolder: async (folderId: number) => {
+    return await ipcRenderer.invoke('entries:getByFolder', folderId)
+  },
+ 
+  searchEntries: async (query: string) => {
+    return await ipcRenderer.invoke('entries:search', query)
+  },
+ 
+  createEntry: async (input: {
+    folderId: number
+    title:    string
+    username: string
+    password: string
+    url:      string | null
+    notes:    string | null
+  }) => {
+    return await ipcRenderer.invoke('entries:create', input)
+  },
+ 
+  updateEntry: async (input: {
+    id:       number
+    folderId: number
+    title:    string
+    username: string
+    password: string
+    url:      string | null
+    notes:    string | null
+    favorite: 0 | 1
+  }) => {
+    return await ipcRenderer.invoke('entries:update', input)
+  },
+ 
+  deleteEntry: async (id: number) => {
+    return await ipcRenderer.invoke('entries:delete', id)
+  },
+ 
+  toggleFavorite: async (id: number) => {
+    return await ipcRenderer.invoke('entries:toggleFavorite', id)
+  },
+ 
+  encryptPassword: async (plaintext: string): Promise<string> => {
+    return await ipcRenderer.invoke('entries:encryptPassword', plaintext)
+  },
+ 
+  decryptPassword: async (stored: string): Promise<string> => {
+    return await ipcRenderer.invoke('entries:decryptPassword', stored)
   },
 
 } satisfies Api)
