@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Folder, SidebarProps } from '../../../types/types'
+import SettingsPanel from './Settings'
 
 
 
@@ -9,6 +10,7 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onFoldersCha
   const [folders,       setFolders]       = useState<Folder[]>([])
   const [collapsed,     setCollapsed]     = useState(false)
   const [creating,      setCreating]      = useState(false)
+  const [ShowSettings,   setShowSettings]   = useState(false)
   const [newName,       setNewName]       = useState('')
   const [hoveredId,     setHoveredId]     = useState<number | null | 'all'>('all')
   const [mounted,       setMounted]       = useState(false)
@@ -36,6 +38,11 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onFoldersCha
     setNewName('')
     setError('')
     setTimeout(() => newFolderRef.current?.focus(), 50)
+  }
+
+  function openSettings(){
+    setShowSettings(true);
+
   }
 
   async function submitNewFolder(e: React.FormEvent) {
@@ -85,6 +92,7 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onFoldersCha
   return (
     <>
       <style>{STYLES}</style>
+          {ShowSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
 
       <aside
         className="sidebar"
@@ -212,6 +220,14 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onFoldersCha
             <PlusIcon />
             {!collapsed && <span>New Folder</span>}
           </button>
+           <button
+            className="new-folder-btn"
+            onClick={collapsed ? () => { setTimeout(openSettings, 200) } : openSettings}
+            title="Settings"
+          >
+            <SettingsIcon />
+            {!collapsed && <span>Settings</span>}
+          </button>
         </div>
       </aside>
     </>
@@ -278,6 +294,15 @@ function SpinnerIcon() {
   return (
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
       <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4" />
+    </svg>
+  )
+}
+
+function SettingsIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
     </svg>
   )
 }
