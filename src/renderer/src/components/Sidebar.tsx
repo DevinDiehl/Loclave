@@ -318,10 +318,12 @@ const STYLES = `
     text-transform:   uppercase;
     color:            rgba(255,255,255,0.25);
     padding-left:     4px;
+    margin-top: 20px;
   }
 
   .collapse-btn {
     margin-left: auto;
+    margin-top: 20px;
   }
 
   .section-label {
