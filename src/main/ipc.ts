@@ -119,6 +119,16 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     return { success: true }
   })
 
+  ipcMain.handle('db:getSetting', async (_event, key: string) => {
+    const value = db.getSetting(key)
+    return { value }
+  })
+
+  ipcMain.handle('db:saveSetting', async (_event, key: string, value: string | number | boolean) => {
+    db.setSetting(key, String(value))
+    return { success: true }
+  })
+
   registerFolderHandlers()
   registerEntryHandlers()
 

@@ -28,7 +28,9 @@ interface Window {
     })                                               => Promise<{ success: boolean }>
     deleteEntry:        (id: number)                 => Promise<{ success: boolean }>
     toggleFavorite:     (id: number)                 => Promise<{ success: boolean }>
-    encryptPassword:    (plaintext: string)           => Promise<string>
-    decryptPassword:    (stored: string)              => Promise<string>
+    encryptPassword:    (plaintext: string)          => Promise<string>
+    decryptPassword:    (stored: string)             => Promise<string>
+    getSetting:         (key: string)                => Promise<string | undefined>
+    saveSettings:       (key: string, value: string | number | boolean) => Promise<void>
     }
 }

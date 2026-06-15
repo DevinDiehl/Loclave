@@ -5,16 +5,15 @@ import {
   clearKeyFromKeychain,
 } from '../cryptography/keychain';
 
-
 type LockCallback = () => void;
 
 const KEY_LENGTH         = 32;   
 const SALT_LENGTH        = 32;   
-const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000; 
+const DEFAULT_TIMEOUT_MS = 300000; 
 
 let sessionKey:     Buffer | null = null;
 let lockTimer:      ReturnType<typeof setTimeout> | null = null;
-let lockTimeoutMs:  number        = DEFAULT_TIMEOUT_MS;
+let lockTimeoutMs:  number = DEFAULT_TIMEOUT_MS;
 let onLockCallback: LockCallback | null = null;
 
 /**

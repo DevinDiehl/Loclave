@@ -1,7 +1,23 @@
 import { useState, useEffect } from 'react'
 
+const AUTO_LOCK_DURATION_MS = {
+  '1min': 60_000,
+  '5min': 300_000,
+  '15min': 900_000,
+  '30min': 1_800_000,
+  'never': 2_592_000_000
+} as const;
+type AutoLockDuration = keyof typeof AUTO_LOCK_DURATION_MS;
+ 
+const MS_TO_AUTO_LOCK_DURATION:Record<string, AutoLockDuration> = {
+  60_000: '1min',
+  300_000: '5min',
+  900_000: '15min',
+  1_800_000: '30min',
+  2_592_000_000: 'never'
+} as const;
+
 type Theme = 'dark' | 'darker' | 'midnight'
-type AutoLockDuration = '1min' | '5min' | '15min' | '30min' | 'never'
 type ClipboardTimeout = '10s' | '30s' | '60s' | 'never'
 
 interface SettingsProps {
@@ -29,9 +45,34 @@ export default function SettingsPanel({ onClose }: SettingsProps) {
   const [checkBreaches, setCheckBreaches] = useState(true)
 
   useEffect(() => {
+    (async () => {
+      setAutoLock(MS_TO_AUTO_LOCK_DURATION[String(await window.api.getSetting('lock_timeout_ms')) as keyof typeof MS_TO_AUTO_LOCK_DURATION] || '5min');
+      setClipboardTimeout(await window.api.getSetting('clipboardTimeout') as ClipboardTimeout || '30s');
+
+    })();
+    
+
     const t = setTimeout(() => setMounted(true), 20)
     return () => clearTimeout(t)
   }, [])
+
+   async function saveSettings(){
+        await window.api.setLockTimeout(AUTO_LOCK_DURATION_MS[autoLock]);
+        await window.api.saveSettings("clipboardTimeout", clipboardTimeout.toString());
+        await window.api.saveSettings("requirePasswordOnCopy", requirePasswordOnCopy);
+        await window.api.saveSettings("showPasswordStrength", showPasswordStrength);
+        await window.api.saveSettings("theme", theme.toString());
+        await window.api.saveSettings("compactMode", compactMode);
+        await window.api.saveSettings("showFavicons", showFavicons);
+        await window.api.saveSettings("startOnLogin", startOnLogin);
+        await window.api.saveSettings("minimizeToTray", minimizeToTray);
+        await window.api.saveSettings("checkBreaches", checkBreaches);
+        onClose();
+
+    }
+
+
+
 
   return (
     <>
@@ -234,8 +275,11 @@ export default function SettingsPanel({ onClose }: SettingsProps) {
 
         {/* Footer */}
         <div className="sp-footer">
-          <button className="sp-cancel-btn" onClick={onClose}>Discard</button>
-          <button className="sp-save-btn" onClick={onClose}>Save Changes</button>
+          <button className="sp-cancel-btn" onClick={async () => {
+            await saveSettings();
+                }}
+  >Discard</button>
+          <button className="sp-save-btn" onClick={saveSettings}>Save Changes</button>
         </div>
       </div>
     </>
