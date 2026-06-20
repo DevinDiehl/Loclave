@@ -32,5 +32,6 @@ interface Window {
     decryptPassword:    (stored: string)             => Promise<string>
     getSetting:         (key: string)                => Promise<string | undefined>
     saveSettings:       (key: string, value: string | number | boolean) => Promise<void>
+    copyWithTimeout:    (password: string)          => Promise<void>
     }
 }

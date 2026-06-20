@@ -1,9 +1,10 @@
-import { ipcMain }  from 'electron'
+import { ipcMain, clipboard }  from 'electron'
 import * as db      from '../db/db'
 import { getSessionKey }           from '../cryptography/session'
 import { encryptToString, decryptFromString } from '../cryptography/crypto'
-
 export function registerEntryHandlers(): void {
+
+  let clipboardTimeout: NodeJS.Timeout | null = null;
 
   /**
    * Returns all entries across all folders.
@@ -97,4 +98,26 @@ export function registerEntryHandlers(): void {
     if (!key) throw new Error('Session is locked')
     return decryptFromString(stored, key)
   })
+
+  ipcMain.handle('entries:copyWithTimeout' , async (_event, password:string) => {
+    try {
+      await clipboard.writeText(password);
+      if (clipboardTimeout) {
+        clearTimeout(clipboardTimeout)
+      }
+        
+      clipboardTimeout = setTimeout(async () => {
+        const current = await clipboard.readText();
+
+        if ( current === password) {
+          await clipboard.writeText('');
+        }
+      }, parseInt(db.getSetting('clipboardTimeout') || '30000'));
+
+    } catch (error){
+      console.error('Failed to copy password', error);
+    }
+  })
+
+
 }

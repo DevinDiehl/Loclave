@@ -17,8 +17,22 @@ const MS_TO_AUTO_LOCK_DURATION:Record<string, AutoLockDuration> = {
   2_592_000_000: 'never'
 } as const;
 
+ const CLIPBOARD_TIMEOUT_MS = {
+  '10s': 10_000,
+  '30s': 30_000,
+  '60s': 60_000,
+  'never': 2_592_000_000,
+} as const;
+
+ type ClipboardTimeout = keyof typeof CLIPBOARD_TIMEOUT_MS;
+ const MS_TO_CLIPBOARD_TIMEOUT: Record<string, ClipboardTimeout> = {
+  10_000: '10s',
+  30_000: '30s',
+  60_000: '60s',
+  2_592_000_000: 'never'
+};
+
 type Theme = 'dark' | 'darker' | 'midnight'
-type ClipboardTimeout = '10s' | '30s' | '60s' | 'never'
 
 interface SettingsProps {
   onClose: () => void
@@ -47,7 +61,7 @@ export default function SettingsPanel({ onClose }: SettingsProps) {
   useEffect(() => {
     (async () => {
       setAutoLock(MS_TO_AUTO_LOCK_DURATION[String(await window.api.getSetting('lock_timeout_ms')) as keyof typeof MS_TO_AUTO_LOCK_DURATION] || '5min');
-      setClipboardTimeout(await window.api.getSetting('clipboardTimeout') as ClipboardTimeout || '30s');
+      setClipboardTimeout(MS_TO_CLIPBOARD_TIMEOUT[String(await window.api.getSetting('clipboardTimeout')) as keyof typeof MS_TO_CLIPBOARD_TIMEOUT] || '30s');
 
     })();
     
@@ -58,7 +72,7 @@ export default function SettingsPanel({ onClose }: SettingsProps) {
 
    async function saveSettings(){
         await window.api.setLockTimeout(AUTO_LOCK_DURATION_MS[autoLock]);
-        await window.api.saveSettings("clipboardTimeout", clipboardTimeout.toString());
+        await window.api.saveSettings("clipboardTimeout", CLIPBOARD_TIMEOUT_MS[clipboardTimeout]);
         await window.api.saveSettings("requirePasswordOnCopy", requirePasswordOnCopy);
         await window.api.saveSettings("showPasswordStrength", showPasswordStrength);
         await window.api.saveSettings("theme", theme.toString());

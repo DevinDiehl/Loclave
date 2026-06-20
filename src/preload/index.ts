@@ -31,6 +31,7 @@ export interface Api {
   decryptPassword:    (stored: string)              => Promise<string>
   getSetting:         (key: string)                => Promise<string | undefined>
   saveSettings:       (key: string, value: string | number | boolean) => Promise<void>
+  copyWithTimeout:   (password: string)           => Promise<void>
 }
 
 contextBridge.exposeInMainWorld('api', {
@@ -153,5 +154,9 @@ contextBridge.exposeInMainWorld('api', {
   saveSettings: async (key: string, value: string | number | boolean): Promise<void> => {
     await ipcRenderer.invoke('db:saveSetting', key, value)
   },
+
+  copyWithTimeout: async (password: string): Promise<void> => {
+    await ipcRenderer.invoke('entries:copyWithTimeout', password)
+  }
 
 } satisfies Api)

@@ -49,16 +49,16 @@ export default function EntryList({ selectedFolderId, folders }: EntryListProps)
   }, [])
 
   // ── Actions ─────────────────────────────────────────────────────────────────
-
-  async function copyPassword(entry: Entry, e: React.MouseEvent) {
+    async function copyPassword(entry: Entry, e: React.MouseEvent) {
     e.stopPropagation()
     try {
       const plain = await window.api.decryptPassword(entry.password)
-      await navigator.clipboard.writeText(plain)
       setCopiedId(entry.id)
       setTimeout(() => setCopiedId(null), 2000)
-    } catch {
-      console.error('Failed to copy password')
+      await window.api.copyWithTimeout(plain);
+
+    } catch(error) {
+      console.error('Failed to copy password', error);
     }
   }
 
