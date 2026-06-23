@@ -43,7 +43,6 @@ export interface Api {
     saveSettings: (key: string, value: string | number | boolean) => Promise<void>
     saveClipboardTimeout: (value: number) => Promise<void>
     saveRequirePasswordOnCopy: (value: boolean) => Promise<void>
-    saveShowPasswordStrength: (value: boolean) => Promise<void>
     saveTheme: (value: string) => Promise<void>
     saveCompactMode: (value: boolean) => Promise<void>
     saveShowFavicons: (value: boolean) => Promise<void>
@@ -181,10 +180,6 @@ contextBridge.exposeInMainWorld('api', {
 
     saveRequirePasswordOnCopy: async (value: boolean): Promise<void> => {
         await ipcRenderer.invoke('settings:setRequirePasswordOnCopy', value)
-    },
-
-    saveShowPasswordStrength: async (value: boolean): Promise<void> => {
-        await ipcRenderer.invoke('settings:setShowPasswordStrength', value)
     },
 
     saveTheme: async (value: string): Promise<void> => {

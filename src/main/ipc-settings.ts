@@ -26,11 +26,6 @@ export function registerSettingsHandlers(): void {
         return { success: true }
     })
 
-    ipcMain.handle('settings:setShowPasswordStrength', async (_event, value: boolean) => {
-        saveValue('showPasswordStrength', value)
-        return { success: true }
-    })
-
     ipcMain.handle('settings:setTheme', async (_event, value: string) => {
         saveValue('theme', value)
         return { success: true }

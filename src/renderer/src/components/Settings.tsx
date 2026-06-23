@@ -54,7 +54,6 @@ export default function SettingsPanel({ onClose }: SettingsProps) {
   const [autoLock, setAutoLock] = useState<AutoLockDuration>('5min')
   const [clipboardTimeout, setClipboardTimeout] = useState<ClipboardTimeout>('30s')
   const [requirePasswordOnCopy, setRequirePasswordOnCopy] = useState(false)
-  const [showPasswordStrength, setShowPasswordStrength] = useState(true)
 
   // Appearance settings
   const [theme, setTheme] = useState<Theme>('dark')
@@ -82,7 +81,6 @@ export default function SettingsPanel({ onClose }: SettingsProps) {
     await window.api.setLockTimeout(AUTO_LOCK_DURATION_MS[autoLock]);
     await window.api.saveClipboardTimeout(CLIPBOARD_TIMEOUT_MS[clipboardTimeout]);
     await window.api.saveRequirePasswordOnCopy(requirePasswordOnCopy);
-    await window.api.saveShowPasswordStrength(showPasswordStrength);
     await window.api.saveTheme(theme);
     await window.api.saveCompactMode(compactMode);
     await window.api.saveShowFavicons(showFavicons);
@@ -221,11 +219,6 @@ export default function SettingsPanel({ onClose }: SettingsProps) {
                   label="Require unlock to copy password"
                   checked={requirePasswordOnCopy}
                   onChange={setRequirePasswordOnCopy}
-                />
-                <Toggle
-                  label="Show password strength indicator"
-                  checked={showPasswordStrength}
-                  onChange={setShowPasswordStrength}
                 />
               </Section>
 
