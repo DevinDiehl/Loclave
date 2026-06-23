@@ -8,8 +8,8 @@ const AUTO_LOCK_DURATION_MS = {
   'never': 2_592_000_000
 } as const;
 type AutoLockDuration = keyof typeof AUTO_LOCK_DURATION_MS;
- 
-const MS_TO_AUTO_LOCK_DURATION:Record<string, AutoLockDuration> = {
+
+const MS_TO_AUTO_LOCK_DURATION: Record<string, AutoLockDuration> = {
   60_000: '1min',
   300_000: '5min',
   900_000: '15min',
@@ -17,15 +17,15 @@ const MS_TO_AUTO_LOCK_DURATION:Record<string, AutoLockDuration> = {
   2_592_000_000: 'never'
 } as const;
 
- const CLIPBOARD_TIMEOUT_MS = {
+const CLIPBOARD_TIMEOUT_MS = {
   '10s': 10_000,
   '30s': 30_000,
   '60s': 60_000,
   'never': 2_592_000_000,
 } as const;
 
- type ClipboardTimeout = keyof typeof CLIPBOARD_TIMEOUT_MS;
- const MS_TO_CLIPBOARD_TIMEOUT: Record<string, ClipboardTimeout> = {
+type ClipboardTimeout = keyof typeof CLIPBOARD_TIMEOUT_MS;
+const MS_TO_CLIPBOARD_TIMEOUT: Record<string, ClipboardTimeout> = {
   10_000: '10s',
   30_000: '30s',
   60_000: '60s',
@@ -41,6 +41,14 @@ interface SettingsProps {
 export default function SettingsPanel({ onClose }: SettingsProps) {
   const [mounted, setMounted] = useState(false)
   const [activeTab, setActiveTab] = useState<'security' | 'appearance' | 'general'>('security')
+  
+  // Password change modal
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordChangeError, setPasswordChangeError] = useState<string | null>(null)
+  const [passwordChangeLoading, setPasswordChangeLoading] = useState(false)
 
   // Security settings
   const [autoLock, setAutoLock] = useState<AutoLockDuration>('5min')
@@ -62,28 +70,69 @@ export default function SettingsPanel({ onClose }: SettingsProps) {
     (async () => {
       setAutoLock(MS_TO_AUTO_LOCK_DURATION[String(await window.api.getSetting('lock_timeout_ms')) as keyof typeof MS_TO_AUTO_LOCK_DURATION] || '5min');
       setClipboardTimeout(MS_TO_CLIPBOARD_TIMEOUT[String(await window.api.getSetting('clipboardTimeout')) as keyof typeof MS_TO_CLIPBOARD_TIMEOUT] || '30s');
-
+      setRequirePasswordOnCopy(await window.api.getSetting('requirePasswordOnCopy') === 'true');
     })();
-    
+
 
     const t = setTimeout(() => setMounted(true), 20)
     return () => clearTimeout(t)
   }, [])
 
-   async function saveSettings(){
-        await window.api.setLockTimeout(AUTO_LOCK_DURATION_MS[autoLock]);
-        await window.api.saveSettings("clipboardTimeout", CLIPBOARD_TIMEOUT_MS[clipboardTimeout]);
-        await window.api.saveSettings("requirePasswordOnCopy", requirePasswordOnCopy);
-        await window.api.saveSettings("showPasswordStrength", showPasswordStrength);
-        await window.api.saveSettings("theme", theme.toString());
-        await window.api.saveSettings("compactMode", compactMode);
-        await window.api.saveSettings("showFavicons", showFavicons);
-        await window.api.saveSettings("startOnLogin", startOnLogin);
-        await window.api.saveSettings("minimizeToTray", minimizeToTray);
-        await window.api.saveSettings("checkBreaches", checkBreaches);
-        onClose();
+  async function saveSettings() {
+    await window.api.setLockTimeout(AUTO_LOCK_DURATION_MS[autoLock]);
+    await window.api.saveClipboardTimeout(CLIPBOARD_TIMEOUT_MS[clipboardTimeout]);
+    await window.api.saveRequirePasswordOnCopy(requirePasswordOnCopy);
+    await window.api.saveShowPasswordStrength(showPasswordStrength);
+    await window.api.saveTheme(theme);
+    await window.api.saveCompactMode(compactMode);
+    await window.api.saveShowFavicons(showFavicons);
+    await window.api.saveStartOnLogin(startOnLogin);
+    await window.api.saveMinimizeToTray(minimizeToTray);
+    await window.api.saveCheckBreaches(checkBreaches);
+    onClose();
+  }
 
+  async function handleChangePassword() {
+    setPasswordChangeError(null)
+    
+    // Validation
+    if (!currentPassword) {
+      setPasswordChangeError('Please enter your current password')
+      return
     }
+    if (!newPassword) {
+      setPasswordChangeError('Please enter a new password')
+      return
+    }
+    if (newPassword.length < 8) {
+      setPasswordChangeError('New password must be at least 8 characters')
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordChangeError('Passwords do not match')
+      return
+    }
+    if (currentPassword === newPassword) {
+      setPasswordChangeError('New password must be different from current password')
+      return
+    }
+
+    try {
+      setPasswordChangeLoading(true)
+      await window.api.changeMasterPassword(currentPassword, newPassword)
+      
+      // Success - clear form and close modal
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+      setShowChangePasswordModal(false)
+      setPasswordChangeError(null)
+    } catch (err) {
+      setPasswordChangeError(err instanceof Error ? err.message : 'Failed to change password')
+    } finally {
+      setPasswordChangeLoading(false)
+    }
+  }
 
 
 
@@ -141,10 +190,10 @@ export default function SettingsPanel({ onClose }: SettingsProps) {
               <Section title="Auto-Lock">
                 <SegmentedControl
                   options={[
-                    { label: '1m',    value: '1min' },
-                    { label: '5m',    value: '5min' },
-                    { label: '15m',   value: '15min' },
-                    { label: '30m',   value: '30min' },
+                    { label: '1m', value: '1min' },
+                    { label: '5m', value: '5min' },
+                    { label: '15m', value: '15min' },
+                    { label: '30m', value: '30min' },
                     { label: 'Never', value: 'never' },
                   ]}
                   value={autoLock}
@@ -156,9 +205,9 @@ export default function SettingsPanel({ onClose }: SettingsProps) {
               <Section title="Clipboard Timeout">
                 <SegmentedControl
                   options={[
-                    { label: '10s',   value: '10s' },
-                    { label: '30s',   value: '30s' },
-                    { label: '60s',   value: '60s' },
+                    { label: '10s', value: '10s' },
+                    { label: '30s', value: '30s' },
+                    { label: '60s', value: '60s' },
                     { label: 'Never', value: 'never' },
                   ]}
                   value={clipboardTimeout}
@@ -182,7 +231,7 @@ export default function SettingsPanel({ onClose }: SettingsProps) {
 
               <div className="sp-danger-zone">
                 <p className="sp-danger-label">Danger Zone</p>
-                <button className="sp-danger-btn">
+                <button className="sp-danger-btn" onClick={() => setShowChangePasswordModal(true)}>
                   <LockIcon /> Change Master Password
                 </button>
                 <button className="sp-danger-btn sp-danger-btn-red">
@@ -198,8 +247,8 @@ export default function SettingsPanel({ onClose }: SettingsProps) {
               <Section title="Theme">
                 <div className="sp-theme-grid">
                   {([
-                    { value: 'dark',     label: 'Dark',     bg: '#16161f', accent: '#a894ff' },
-                    { value: 'darker',   label: 'Darker',   bg: '#0e0e14', accent: '#7c6dd8' },
+                    { value: 'dark', label: 'Dark', bg: '#16161f', accent: '#a894ff' },
+                    { value: 'darker', label: 'Darker', bg: '#0e0e14', accent: '#7c6dd8' },
                     { value: 'midnight', label: 'Midnight', bg: '#080b14', accent: '#60a5fa' },
                   ] as const).map(t => (
                     <button
@@ -291,11 +340,111 @@ export default function SettingsPanel({ onClose }: SettingsProps) {
         <div className="sp-footer">
           <button className="sp-cancel-btn" onClick={async () => {
             await saveSettings();
-                }}
-  >Discard</button>
+          }}
+          >Discard</button>
           <button className="sp-save-btn" onClick={saveSettings}>Save Changes</button>
         </div>
       </div>
+
+      {/* Change Password Modal */}
+      {showChangePasswordModal && (
+        <>
+          <div
+            className="sp-backdrop"
+            style={{ opacity: 1 }}
+            onClick={() => !passwordChangeLoading && setShowChangePasswordModal(false)}
+          />
+          <div
+            className="sp-modal cp-modal"
+            style={{
+              opacity: 1,
+              transform: 'translate(-50%, -50%) translateY(0) scale(1)',
+            }}
+          >
+            <div className="sp-header">
+              <div className="sp-header-left">
+                <LockIcon />
+                <h2 className="sp-title">Change Master Password</h2>
+              </div>
+              <button
+                className="sp-close"
+                onClick={() => !passwordChangeLoading && setShowChangePasswordModal(false)}
+                disabled={passwordChangeLoading}
+                title="Close"
+              >
+                <XIcon />
+              </button>
+            </div>
+
+            <div className="sp-scroll cp-scroll">
+              <div className="cp-form">
+                <div className="cp-form-group">
+                  <label className="cp-label">Current Master Password</label>
+                  <input
+                    type="password"
+                    className="cp-input"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="Enter your current password"
+                    disabled={passwordChangeLoading}
+                  />
+                </div>
+
+                <div className="cp-form-group">
+                  <label className="cp-label">New Master Password</label>
+                  <input
+                    type="password"
+                    className="cp-input"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Enter new password (minimum 8 characters)"
+                    disabled={passwordChangeLoading}
+                  />
+                </div>
+
+                <div className="cp-form-group">
+                  <label className="cp-label">Confirm New Password</label>
+                  <input
+                    type="password"
+                    className="cp-input"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Confirm your new password"
+                    disabled={passwordChangeLoading}
+                  />
+                </div>
+
+                {passwordChangeError && (
+                  <div className="cp-error">
+                    {passwordChangeError}
+                  </div>
+                )}
+
+                <p className="cp-hint">
+                  ⚠️ Your master password cannot be recovered if forgotten. All your passwords are encrypted with this password.
+                </p>
+              </div>
+            </div>
+
+            <div className="sp-footer">
+              <button
+                className="sp-cancel-btn"
+                onClick={() => setShowChangePasswordModal(false)}
+                disabled={passwordChangeLoading}
+              >
+                Cancel
+              </button>
+              <button
+                className="sp-save-btn"
+                onClick={handleChangePassword}
+                disabled={passwordChangeLoading}
+              >
+                {passwordChangeLoading ? 'Changing...' : 'Change Password'}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </>
   )
 }
@@ -365,25 +514,25 @@ function SegmentedControl({
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
 function XIcon() {
-  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
 }
 function SettingsIcon() {
-  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>
 }
 function LockIcon() {
-  return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+  return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
 }
 function TrashIcon() {
-  return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+  return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>
 }
 function ExportIcon() {
-  return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+  return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
 }
 function ImportIcon() {
-  return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+  return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
 }
 function CheckIcon() {
-  return <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+  return <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
@@ -928,5 +1077,81 @@ const STYLES = `
   .sp-save-btn:hover {
     opacity:        0.9;
     transform:      translateY(-1px);
+  }
+
+  /* ── Change Password Modal ────────────────────────────────────── */
+
+  .cp-modal {
+    max-width:      440px;
+  }
+
+  .cp-scroll {
+    padding:        24px !important;
+  }
+
+  .cp-form {
+    display:        flex;
+    flex-direction: column;
+    gap:            16px;
+  }
+
+  .cp-form-group {
+    display:        flex;
+    flex-direction: column;
+    gap:            6px;
+  }
+
+  .cp-label {
+    font-family:    'DM Sans', sans-serif;
+    font-size:      12px;
+    font-weight:    500;
+    color:          rgba(255,255,255,0.65);
+    letter-spacing: 0.01em;
+  }
+
+  .cp-input {
+    padding:        10px 12px;
+    background:     rgba(255,255,255,0.04);
+    border:         1px solid rgba(255,255,255,0.08);
+    border-radius:  8px;
+    font-family:    'DM Sans', sans-serif;
+    font-size:      13px;
+    color:          rgba(255,255,255,0.85);
+    transition:     border-color 0.15s, background 0.15s;
+  }
+
+  .cp-input::placeholder {
+    color:          rgba(255,255,255,0.2);
+  }
+
+  .cp-input:focus {
+    outline:        none;
+    background:     rgba(255,255,255,0.06);
+    border-color:   rgba(168,148,255,0.3);
+  }
+
+  .cp-input:disabled {
+    opacity:        0.5;
+    cursor:         not-allowed;
+  }
+
+  .cp-error {
+    padding:        10px 12px;
+    background:     rgba(248,113,113,0.08);
+    border:         1px solid rgba(248,113,113,0.2);
+    border-radius:  8px;
+    font-family:    'DM Sans', sans-serif;
+    font-size:      12px;
+    color:          rgba(248,113,113,0.8);
+    line-height:    1.4;
+    margin-top:     4px;
+  }
+
+  .cp-hint {
+    font-family:    'DM Sans', sans-serif;
+    font-size:      11px;
+    color:          rgba(255,255,255,0.25);
+    line-height:    1.5;
+    margin:         8px 0 0;
   }
 `

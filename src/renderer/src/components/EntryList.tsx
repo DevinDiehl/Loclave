@@ -13,6 +13,13 @@ export default function EntryList({ selectedFolderId, folders }: EntryListProps)
   const [copiedId,     setCopiedId]     = useState<number | null>(null)
   const [deletingId,   setDeletingId]   = useState<number | null>(null)
   const [mounted,      setMounted]      = useState(false)
+  
+  // Password verification modal
+  const [showVerifyModal, setShowVerifyModal] = useState(false)
+  const [verifyPassword, setVerifyPassword] = useState('')
+  const [verifyError, setVerifyError] = useState<string | null>(null)
+  const [verifyLoading, setVerifyLoading] = useState(false)
+  const [pendingEntry, setPendingEntry] = useState<Entry | null>(null)
 
   // ── Load entries ────────────────────────────────────────────────────────────
 
@@ -49,16 +56,61 @@ export default function EntryList({ selectedFolderId, folders }: EntryListProps)
   }, [])
 
   // ── Actions ─────────────────────────────────────────────────────────────────
-    async function copyPassword(entry: Entry, e: React.MouseEvent) {
+  
+  async function copyPassword(entry: Entry, e: React.MouseEvent) {
     e.stopPropagation()
+    
+    // Check if require password on copy is enabled
+    const requirePassword = await window.api.getSetting('requirePasswordOnCopy')
+    if (requirePassword === 'true') {
+      setPendingEntry(entry)
+      setShowVerifyModal(true)
+      setVerifyPassword('')
+      setVerifyError(null)
+      return
+    }
+    
+    // If not required, copy directly
     try {
       const plain = await window.api.decryptPassword(entry.password)
       setCopiedId(entry.id)
       setTimeout(() => setCopiedId(null), 2000)
-      await window.api.copyWithTimeout(plain);
+      await window.api.copyWithTimeout(plain)
+    } catch (error) {
+      console.error('Failed to copy password', error)
+    }
+  }
 
-    } catch(error) {
-      console.error('Failed to copy password', error);
+  async function handleVerifyAndCopy() {
+    if (!pendingEntry) return
+    
+    setVerifyError(null)
+    setVerifyLoading(true)
+    
+    try {
+      // Verify the password with the main process
+      const isValid = await window.api.verifyMasterPassword(verifyPassword)
+      if (!isValid) {
+        setVerifyError('Incorrect master password')
+        setVerifyLoading(false)
+        return
+      }
+      
+      // Password verified, copy the entry password
+      const plain = await window.api.decryptPassword(pendingEntry.password)
+      setCopiedId(pendingEntry.id)
+      setTimeout(() => setCopiedId(null), 2000)
+      await window.api.copyWithTimeout(plain)
+      
+      // Close modal and reset
+      setShowVerifyModal(false)
+      setVerifyPassword('')
+      setPendingEntry(null)
+    } catch (error) {
+      console.error('Failed to verify and copy', error)
+      setVerifyError('Failed to copy password')
+    } finally {
+      setVerifyLoading(false)
     }
   }
 
@@ -261,6 +313,56 @@ export default function EntryList({ selectedFolderId, folders }: EntryListProps)
           onSave={handleFormSave}
           onCancel={() => { setShowForm(false); setEditingEntry(null) }}
         />
+      )}
+
+      {/* ── Password Verification Modal ──────────────────────────────── */}
+      {showVerifyModal && (
+        <>
+          <div
+            className="el-backdrop"
+            onClick={() => !verifyLoading && setShowVerifyModal(false)}
+          />
+          <div className="el-verify-modal">
+            <h3 className="el-verify-title">Enter Master Password</h3>
+            <p className="el-verify-subtitle">Required to copy password</p>
+            
+            <input
+              type="password"
+              className="el-verify-input"
+              placeholder="Master password"
+              value={verifyPassword}
+              onChange={(e) => setVerifyPassword(e.target.value)}
+              disabled={verifyLoading}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !verifyLoading) {
+                  handleVerifyAndCopy()
+                }
+              }}
+              autoFocus
+            />
+            
+            {verifyError && (
+              <p className="el-verify-error">{verifyError}</p>
+            )}
+            
+            <div className="el-verify-actions">
+              <button
+                className="el-verify-btn-cancel"
+                onClick={() => setShowVerifyModal(false)}
+                disabled={verifyLoading}
+              >
+                Cancel
+              </button>
+              <button
+                className="el-verify-btn-confirm"
+                onClick={handleVerifyAndCopy}
+                disabled={verifyLoading || !verifyPassword}
+              >
+                {verifyLoading ? 'Verifying...' : 'Verify & Copy'}
+              </button>
+            </div>
+          </div>
+        </>
       )}
     </>
   )
@@ -673,4 +775,158 @@ const STYLES = `
   }
 
   @keyframes el-spin { to { transform: rotate(360deg); } }
+
+  /* ── Verification Modal ───────────────────────────────────────── */
+
+  .el-backdrop {
+    position:       fixed;
+    inset:          0;
+    background:     rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px);
+    z-index:        200;
+    animation:      el-backdrop-in 0.2s ease;
+  }
+
+  @keyframes el-backdrop-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .el-verify-modal {
+    position:       fixed;
+    top:            50%;
+    left:           50%;
+    transform:      translate(-50%, -50%);
+    width:          100%;
+    max-width:      340px;
+    padding:        28px 24px;
+    background:     linear-gradient(135deg, rgba(22,22,31,0.95), rgba(14,14,20,0.95));
+    border:         1px solid rgba(168,148,255,0.15);
+    border-radius:  16px;
+    box-shadow:     0 25px 50px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+    z-index:        201;
+    animation:      el-modal-in 0.3s cubic-bezier(0.16,1,0.3,1);
+  }
+
+  @keyframes el-modal-in {
+    from {
+      opacity:      0;
+      transform:    translate(-50%, -50%) scale(0.95);
+    }
+    to {
+      opacity:      1;
+      transform:    translate(-50%, -50%) scale(1);
+    }
+  }
+
+  .el-verify-title {
+    font-family:    'DM Serif Display', serif;
+    font-size:      18px;
+    font-weight:    400;
+    color:          #f0eeff;
+    margin:         0 0 6px;
+    letter-spacing: -0.02em;
+  }
+
+  .el-verify-subtitle {
+    font-family:    'DM Sans', sans-serif;
+    font-size:      12px;
+    color:          rgba(255,255,255,0.35);
+    margin:         0 0 16px;
+    letter-spacing: 0.01em;
+  }
+
+  .el-verify-input {
+    width:          100%;
+    padding:        11px 14px;
+    margin-bottom:  12px;
+    background:     rgba(255,255,255,0.04);
+    border:         1px solid rgba(255,255,255,0.08);
+    border-radius:  10px;
+    font-family:    'DM Sans', sans-serif;
+    font-size:      13px;
+    color:          rgba(255,255,255,0.85);
+    box-sizing:     border-box;
+    transition:     border-color 0.15s, background 0.15s;
+  }
+
+  .el-verify-input:focus {
+    outline:        none;
+    background:     rgba(255,255,255,0.06);
+    border-color:   rgba(168,148,255,0.3);
+  }
+
+  .el-verify-input::placeholder {
+    color:          rgba(255,255,255,0.2);
+  }
+
+  .el-verify-input:disabled {
+    opacity:        0.5;
+    cursor:         not-allowed;
+  }
+
+  .el-verify-error {
+    font-family:    'DM Sans', sans-serif;
+    font-size:      12px;
+    color:          #f87171;
+    margin:         0 0 12px;
+    padding:        8px 10px;
+    background:     rgba(248,113,113,0.08);
+    border:         1px solid rgba(248,113,113,0.2);
+    border-radius:  8px;
+    line-height:    1.4;
+  }
+
+  .el-verify-actions {
+    display:        flex;
+    gap:            10px;
+  }
+
+  .el-verify-btn-cancel {
+    flex:           1;
+    padding:        10px;
+    background:     rgba(255,255,255,0.04);
+    border:         1px solid rgba(255,255,255,0.08);
+    border-radius:  9px;
+    color:          rgba(255,255,255,0.45);
+    font-family:    'DM Sans', sans-serif;
+    font-size:      13px;
+    cursor:         pointer;
+    transition:     background 0.15s, color 0.15s;
+  }
+
+  .el-verify-btn-cancel:hover:not(:disabled) {
+    background:     rgba(255,255,255,0.07);
+    color:          rgba(255,255,255,0.7);
+  }
+
+  .el-verify-btn-cancel:disabled {
+    opacity:        0.5;
+    cursor:         not-allowed;
+  }
+
+  .el-verify-btn-confirm {
+    flex:           1;
+    padding:        10px;
+    background:     linear-gradient(135deg, rgba(168,148,255,0.9), rgba(108,80,220,0.9));
+    border:         none;
+    border-radius:  9px;
+    color:          #fff;
+    font-family:    'DM Sans', sans-serif;
+    font-size:      13px;
+    font-weight:    500;
+    cursor:         pointer;
+    transition:     opacity 0.15s, transform 0.15s;
+    box-shadow:     0 2px 8px rgba(108,80,220,0.3);
+  }
+
+  .el-verify-btn-confirm:hover:not(:disabled) {
+    opacity:        0.9;
+    transform:      translateY(-1px);
+  }
+
+  .el-verify-btn-confirm:disabled {
+    opacity:        0.5;
+    cursor:         not-allowed;
+  }
 `
