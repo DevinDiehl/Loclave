@@ -54,5 +54,6 @@ interface Window {
         copyWithTimeout: (password: string) => Promise<void>
         changeMasterPassword: (currentPassword: string, newPassword: string) => Promise<void>
         verifyMasterPassword: (password: string) => Promise<boolean>
+        fetchFavicon: (domain: string) => Promise<string | null>
     }
 }

@@ -70,6 +70,7 @@ export default function SettingsPanel({ onClose }: SettingsProps) {
       setAutoLock(MS_TO_AUTO_LOCK_DURATION[String(await window.api.getSetting('lock_timeout_ms')) as keyof typeof MS_TO_AUTO_LOCK_DURATION] || '5min');
       setClipboardTimeout(MS_TO_CLIPBOARD_TIMEOUT[String(await window.api.getSetting('clipboardTimeout')) as keyof typeof MS_TO_CLIPBOARD_TIMEOUT] || '30s');
       setRequirePasswordOnCopy(await window.api.getSetting('requirePasswordOnCopy') === 'true');
+      setShowFavicons(await window.api.getSetting('showFavicons') === 'true');
     })();
 
 

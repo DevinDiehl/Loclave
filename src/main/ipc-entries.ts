@@ -2,6 +2,8 @@ import { ipcMain, clipboard }  from 'electron'
 import * as db      from '../db/db'
 import { getSessionKey }           from '../cryptography/session'
 import { encryptToString, decryptFromString } from '../cryptography/crypto'
+import https from 'https'
+import http from 'http'
 export function registerEntryHandlers(): void {
 
   let clipboardTimeout: NodeJS.Timeout | null = null;
@@ -119,5 +121,39 @@ export function registerEntryHandlers(): void {
     }
   })
 
+  /**
+   * Fetches a favicon for a domain and returns it as a data URI.
+   * Uses DuckDuckGo's favicon service.
+   */
+  ipcMain.handle('entries:fetchFavicon', async (_event, domain: string) => {
+    try {
+      const faviconUrl = `https://icons.duckduckgo.com/ip3/${domain}.ico`
+      
+      const buffer = await new Promise<Buffer>((resolve, reject) => {
+        https.get(faviconUrl, { timeout: 5000 }, (response) => {
+          const chunks: Buffer[] = []
+          
+          response.on('data', (chunk: Buffer) => {
+            chunks.push(chunk)
+          })
+          
+          response.on('end', () => {
+            resolve(Buffer.concat(chunks))
+          })
+          
+          response.on('error', reject)
+        }).on('error', reject)
+      })
+
+      // Convert to data URI
+      const base64 = buffer.toString('base64')
+      const dataUri = `data:image/x-icon;base64,${base64}`
+      
+      return { dataUri }
+    } catch (error) {
+      console.error(`Failed to fetch favicon for ${domain}:`, error)
+      return { dataUri: null }
+    }
+  })
 
 }

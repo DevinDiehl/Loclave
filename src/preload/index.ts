@@ -52,6 +52,7 @@ export interface Api {
     copyWithTimeout: (password: string) => Promise<void>
     changeMasterPassword: (currentPassword: string, newPassword: string) => Promise<void>
     verifyMasterPassword: (password: string) => Promise<boolean>
+    fetchFavicon: (domain: string) => Promise<string | null>
 }
 
 contextBridge.exposeInMainWorld('api', {
@@ -217,5 +218,10 @@ contextBridge.exposeInMainWorld('api', {
     verifyMasterPassword: async (password: string): Promise<boolean> => {
         const res = await ipcRenderer.invoke('settings:verifyMasterPassword', password)
         return res.success
+    },
+
+    fetchFavicon: async (domain: string): Promise<string | null> => {
+        const res = await ipcRenderer.invoke('entries:fetchFavicon', domain)
+        return res.dataUri || null
     }
 } satisfies Api)

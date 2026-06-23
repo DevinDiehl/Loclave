@@ -1,8 +1,10 @@
 
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, type Dispatch, type SetStateAction } from 'react'
 import type { Entry, EntryListProps } from '../../../types/types'
 import EntryForm from './EntryForm'
+
+type FaviconCache = Record<string, string | null>
 
 export default function EntryList({ selectedFolderId, folders }: EntryListProps) {
   const [entries,      setEntries]      = useState<Entry[]>([])
@@ -20,6 +22,10 @@ export default function EntryList({ selectedFolderId, folders }: EntryListProps)
   const [verifyError, setVerifyError] = useState<string | null>(null)
   const [verifyLoading, setVerifyLoading] = useState(false)
   const [pendingEntry, setPendingEntry] = useState<Entry | null>(null)
+  
+  // Favicon setting and cache
+  const [showFavicons, setShowFavicons] = useState(false)
+  const [faviconCache, setFaviconCache] = useState<FaviconCache>({})
 
   // ── Load entries ────────────────────────────────────────────────────────────
 
@@ -49,6 +55,13 @@ export default function EntryList({ selectedFolderId, folders }: EntryListProps)
   useEffect(() => {
     loadEntries()
   }, [loadEntries])
+
+  useEffect(() => {
+    (async () => {
+      const showFav = await window.api.getSetting('showFavicons')
+      setShowFavicons(showFav === 'true')
+    })()
+  }, [])
 
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 30)
@@ -162,6 +175,36 @@ export default function EntryList({ selectedFolderId, folders }: EntryListProps)
   const getFolderName = (folderId: number) =>
     folders.find(f => f.id === folderId)?.name ?? ''
 
+  // Extract domain from URL for favicon
+  function extractDomain(url: string): string | null {
+    try {
+      const urlObj = new URL(url)
+      return urlObj.hostname
+    } catch {
+      return null
+    }
+  }
+
+  // Get or load favicon from cache (as data URI)
+  async function getFavicon(domain: string): Promise<string | null> {
+    if (!domain) return null
+
+    // Check cache first
+    if (faviconCache[domain]) {
+      return faviconCache[domain]
+    }
+
+    try {
+      // Fetch favicon from main process
+      const dataUri = await window.api.fetchFavicon(domain)
+      setFaviconCache(prev => ({ ...prev, [domain]: dataUri }))
+      return dataUri
+    } catch (error) {
+      console.error(`Failed to fetch favicon for ${domain}:`, error)
+      return null
+    }
+  }
+
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
@@ -246,10 +289,8 @@ export default function EntryList({ selectedFolderId, folders }: EntryListProps)
                     transition:`opacity 0.3s ease ${i * 0.04}s, transform 0.3s ease ${i * 0.04}s`,
                   }}
                 >
-                  {/* Avatar */}
-                  <div className="el-avatar" style={{ background: avatarColor(entry.title) }}>
-                    {entry.title.charAt(0).toUpperCase()}
-                  </div>
+                  {/* Avatar or Favicon */}
+                  <AvatarDisplay entry={entry} showFavicons={showFavicons} faviconCache={faviconCache} setFaviconCache={setFaviconCache} />
 
                   {/* Info */}
                   <div className="el-card-info">
@@ -366,6 +407,68 @@ export default function EntryList({ selectedFolderId, folders }: EntryListProps)
       )}
     </>
   )
+}
+
+// ─── Avatar Display Component ─────────────────────────────────────────────────
+
+function AvatarDisplay({ entry, showFavicons, faviconCache, setFaviconCache }: { entry: Entry, showFavicons: boolean, faviconCache: FaviconCache, setFaviconCache: Dispatch<SetStateAction<FaviconCache>> }) {
+  const [faviconError, setFaviconError] = useState(false)
+  const [faviconUrl, setFaviconUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!showFavicons || !entry.url) return
+
+    const loadFavicon = async () => {
+      try {
+        const domain = extractDomain(entry.url || '')
+        if (!domain) return
+
+        // Check cache
+        if (faviconCache[domain]) {
+          setFaviconUrl(faviconCache[domain])
+          return
+        }
+
+        // Fetch from main process
+        const dataUri = await window.api.fetchFavicon(domain)
+        if (dataUri) {
+          setFaviconCache(prev => ({ ...prev, [domain]: dataUri }))
+          setFaviconUrl(dataUri)
+        }
+      } catch (error) {
+        console.error('Failed to load favicon:', error)
+        setFaviconError(true)
+      }
+    }
+
+    loadFavicon()
+  }, [entry.url, showFavicons, faviconCache, setFaviconCache])
+
+  if (showFavicons && faviconUrl && !faviconError) {
+    return (
+      <img
+        src={faviconUrl}
+        alt={entry.title}
+        className="el-favicon"
+        onError={() => setFaviconError(true)}
+      />
+    )
+  }
+
+  return (
+    <div className="el-avatar" style={{ background: avatarColor(entry.title) }}>
+      {entry.title.charAt(0).toUpperCase()}
+    </div>
+  )
+}
+
+function extractDomain(url: string): string | null {
+  try {
+    const urlObj = new URL(url)
+    return urlObj.hostname
+  } catch {
+    return null
+  }
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -673,6 +776,20 @@ const STYLES = `
     color:          rgba(255,255,255,0.9);
     flex-shrink:    0;
     letter-spacing: -0.01em;
+  }
+
+  /* ── Favicon ───────────────────────────────────────────────────── */
+
+  .el-favicon {
+    width:          40px;
+    height:         40px;
+    border-radius:  11px;
+    flex-shrink:    0;
+    display:        block;
+    object-fit:     contain;
+    background:     rgba(255,255,255,0.02);
+    padding:        4px;
+    box-sizing:     border-box;
   }
 
   /* ── Card info ────────────────────────────────────────────────── */
