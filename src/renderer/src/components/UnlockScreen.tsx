@@ -63,18 +63,7 @@ export default function UnlockScreen({ isFirstLaunch, onUnlocked }: UnlockScreen
 
 
   }
-    function DragBar() {
-  return (
-    <div
-      style={{
-        height:          '28px',
-        width:           '100%',
-        flexShrink:      0,
-        WebkitAppRegion: 'drag',
-      } as React.CSSProperties}
-    />
-  )
-}
+  
 
   return (
     <div style={styles.root}>

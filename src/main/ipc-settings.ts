@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { ipcMain, app } from 'electron'
 import * as db from '../db/db'
 import {
     hashMasterPassword,
@@ -43,6 +43,7 @@ export function registerSettingsHandlers(): void {
 
     ipcMain.handle('settings:setStartOnLogin', async (_event, value: boolean) => {
         saveValue('startOnLogin', value)
+        app.setLoginItemSettings({ openAtLogin: value })
         return { success: true }
     })
 

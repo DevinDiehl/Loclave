@@ -174,36 +174,9 @@ export default function EntryList({ selectedFolderId, folders }: EntryListProps)
 
   const getFolderName = (folderId: number) =>
     folders.find(f => f.id === folderId)?.name ?? ''
+  
 
-  // Extract domain from URL for favicon
-  function extractDomain(url: string): string | null {
-    try {
-      const urlObj = new URL(url)
-      return urlObj.hostname
-    } catch {
-      return null
-    }
-  }
-
-  // Get or load favicon from cache (as data URI)
-  async function getFavicon(domain: string): Promise<string | null> {
-    if (!domain) return null
-
-    // Check cache first
-    if (faviconCache[domain]) {
-      return faviconCache[domain]
-    }
-
-    try {
-      // Fetch favicon from main process
-      const dataUri = await window.api.fetchFavicon(domain)
-      setFaviconCache(prev => ({ ...prev, [domain]: dataUri }))
-      return dataUri
-    } catch (error) {
-      console.error(`Failed to fetch favicon for ${domain}:`, error)
-      return null
-    }
-  }
+ 
 
   // ── Render ──────────────────────────────────────────────────────────────────
 

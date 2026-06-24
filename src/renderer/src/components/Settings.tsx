@@ -71,6 +71,7 @@ export default function SettingsPanel({ onClose }: SettingsProps) {
       setClipboardTimeout(MS_TO_CLIPBOARD_TIMEOUT[String(await window.api.getSetting('clipboardTimeout')) as keyof typeof MS_TO_CLIPBOARD_TIMEOUT] || '30s');
       setRequirePasswordOnCopy(await window.api.getSetting('requirePasswordOnCopy') === 'true');
       setShowFavicons(await window.api.getSetting('showFavicons') === 'true');
+      setStartOnLogin(await window.api.getSetting('startOnLogin') === 'true');
     })();
 
 
