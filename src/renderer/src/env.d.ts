@@ -52,6 +52,14 @@ interface Window {
         saveMinimizeToTray: (value: boolean) => Promise<void>
         saveCheckBreaches: (value: boolean) => Promise<void>
         copyWithTimeout: (password: string) => Promise<void>
+        exportVault: () => Promise<{ success: boolean; canceled: boolean; filePath?: string }>
+        importVault: () => Promise<{
+            success: boolean
+            canceled: boolean
+            filePath?: string
+            entryCount?: number
+            folderCount?: number
+        }>
         changeMasterPassword: (currentPassword: string, newPassword: string) => Promise<void>
         verifyMasterPassword: (password: string) => Promise<boolean>
         fetchFavicon: (domain: string) => Promise<string | null>

@@ -49,9 +49,10 @@ app.whenReady().then(() => {
     db.init()
 
     const launchOnStartup = db.getSetting('startOnLogin')
+    const minimizeToTray = db.getSetting('minimizeToTray')
     app.setLoginItemSettings({
         openAtLogin: launchOnStartup === 'true',
-        openAsHidden: false
+        openAsHidden: minimizeToTray === 'true'
     })
 
     createWindow()

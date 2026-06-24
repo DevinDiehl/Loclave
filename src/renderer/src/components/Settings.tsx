@@ -64,6 +64,12 @@ export default function SettingsPanel({ onClose }: SettingsProps) {
   const [startOnLogin, setStartOnLogin] = useState(false)
   const [minimizeToTray, setMinimizeToTray] = useState(true)
   const [checkBreaches, setCheckBreaches] = useState(true)
+  const [exportingVault, setExportingVault] = useState(false)
+  const [exportMessage, setExportMessage] = useState<string | null>(null)
+  const [exportError, setExportError] = useState<string | null>(null)
+  const [importingVault, setImportingVault] = useState(false)
+  const [importMessage, setImportMessage] = useState<string | null>(null)
+  const [importError, setImportError] = useState<string | null>(null)
 
   useEffect(() => {
     (async () => {
@@ -72,6 +78,7 @@ export default function SettingsPanel({ onClose }: SettingsProps) {
       setRequirePasswordOnCopy(await window.api.getSetting('requirePasswordOnCopy') === 'true');
       setShowFavicons(await window.api.getSetting('showFavicons') === 'true');
       setStartOnLogin(await window.api.getSetting('startOnLogin') === 'true');
+      setMinimizeToTray(await window.api.getSetting('minimizeToTray') === 'true');
     })();
 
 
@@ -134,7 +141,48 @@ export default function SettingsPanel({ onClose }: SettingsProps) {
     }
   }
 
+  async function handleExportVault() {
+    setExportMessage(null)
+    setExportError(null)
 
+    try {
+      setExportingVault(true)
+      const result = await window.api.exportVault()
+
+      if (result.canceled) {
+        setExportMessage('Export cancelled.')
+        return
+      }
+
+      setExportMessage('Encrypted backup exported successfully.')
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : 'Failed to export vault')
+    } finally {
+      setExportingVault(false)
+    }
+  }
+
+  async function handleImportVault() {
+    setImportMessage(null)
+    setImportError(null)
+
+    try {
+      setImportingVault(true)
+      const result = await window.api.importVault()
+
+      if (result.canceled) {
+        setImportMessage('Import cancelled.')
+        return
+      }
+
+      setImportMessage(`Restored ${result.entryCount ?? 0} entries from backup.`)
+      setTimeout(() => window.location.reload(), 800)
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : 'Failed to import vault')
+    } finally {
+      setImportingVault(false)
+    }
+  }
 
 
   return (
@@ -311,15 +359,31 @@ export default function SettingsPanel({ onClose }: SettingsProps) {
                   <div>
                     <p className="sp-action-label">Export Vault</p>
                     <p className="sp-hint" style={{ marginTop: 2 }}>Download an encrypted backup of your data.</p>
+                    {exportMessage && <p className="sp-status sp-status-success">{exportMessage}</p>}
+                    {exportError && <p className="sp-status sp-status-error">{exportError}</p>}
                   </div>
-                  <button className="sp-action-btn"><ExportIcon /> Export</button>
+                  <button
+                    className="sp-action-btn"
+                    onClick={handleExportVault}
+                    disabled={exportingVault}
+                  >
+                    <ExportIcon /> {exportingVault ? 'Exporting...' : 'Export'}
+                  </button>
                 </div>
                 <div className="sp-action-row">
                   <div>
-                    <p className="sp-action-label">Import</p>
-                    <p className="sp-hint" style={{ marginTop: 2 }}>Import from a CSV or another password manager.</p>
+                    <p className="sp-action-label">Import Backup</p>
+                    <p className="sp-hint" style={{ marginTop: 2 }}>Restore from an encrypted vault backup.</p>
+                    {importMessage && <p className="sp-status sp-status-success">{importMessage}</p>}
+                    {importError && <p className="sp-status sp-status-error">{importError}</p>}
                   </div>
-                  <button className="sp-action-btn"><ImportIcon /> Import</button>
+                  <button
+                    className="sp-action-btn"
+                    onClick={handleImportVault}
+                    disabled={importingVault}
+                  >
+                    <ImportIcon /> {importingVault ? 'Importing...' : 'Import'}
+                  </button>
                 </div>
               </Section>
 
@@ -693,6 +757,21 @@ const STYLES = `
     line-height:    1.5;
   }
 
+  .sp-status {
+    font-family:    'DM Sans', sans-serif;
+    font-size:      11px;
+    margin:         6px 0 0;
+    line-height:    1.4;
+  }
+
+  .sp-status-success {
+    color:          rgba(134,239,172,0.72);
+  }
+
+  .sp-status-error {
+    color:          rgba(248,113,113,0.82);
+  }
+
   /* ── Segmented control ────────────────────────────────────────── */
 
   .sp-segmented {
@@ -993,6 +1072,12 @@ const STYLES = `
   .sp-action-btn:hover {
     background:     rgba(255,255,255,0.09);
     color:          rgba(255,255,255,0.8);
+  }
+
+  .sp-action-btn:disabled {
+    opacity:        0.55;
+    cursor:         not-allowed;
+    transform:      none;
   }
 
   /* ── About ────────────────────────────────────────────────────── */

@@ -50,6 +50,14 @@ export interface Api {
     saveMinimizeToTray: (value: boolean) => Promise<void>
     saveCheckBreaches: (value: boolean) => Promise<void>
     copyWithTimeout: (password: string) => Promise<void>
+    exportVault: () => Promise<{ success: boolean; canceled: boolean; filePath?: string }>
+    importVault: () => Promise<{
+        success: boolean
+        canceled: boolean
+        filePath?: string
+        entryCount?: number
+        folderCount?: number
+    }>
     changeMasterPassword: (currentPassword: string, newPassword: string) => Promise<void>
     verifyMasterPassword: (password: string) => Promise<boolean>
     fetchFavicon: (domain: string) => Promise<string | null>
@@ -209,6 +217,20 @@ contextBridge.exposeInMainWorld('api', {
 
     copyWithTimeout: async (password: string): Promise<void> => {
         await ipcRenderer.invoke('entries:copyWithTimeout', password)
+    },
+
+    exportVault: async (): Promise<{ success: boolean; canceled: boolean; filePath?: string }> => {
+        return await ipcRenderer.invoke('settings:exportVault')
+    },
+
+    importVault: async (): Promise<{
+        success: boolean
+        canceled: boolean
+        filePath?: string
+        entryCount?: number
+        folderCount?: number
+    }> => {
+        return await ipcRenderer.invoke('settings:importVault')
     },
 
     changeMasterPassword: async (currentPassword: string, newPassword: string): Promise<void> => {
