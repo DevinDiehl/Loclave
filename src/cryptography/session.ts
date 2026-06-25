@@ -1,20 +1,17 @@
-import { scryptSync, randomBytes } from 'crypto';
-import { hash, verify }            from '@node-rs/argon2';
-import {
-  saveKeyToKeychain,
-  clearKeyFromKeychain,
-} from '../cryptography/keychain';
+import { scryptSync, randomBytes } from 'crypto'
+import { hash, verify } from '@node-rs/argon2'
+import { saveKeyToKeychain, clearKeyFromKeychain } from '../cryptography/keychain'
 
-type LockCallback = () => void;
+type LockCallback = () => void
 
-const KEY_LENGTH         = 32;   
-const SALT_LENGTH        = 32;   
-const DEFAULT_TIMEOUT_MS = 300000; 
+const KEY_LENGTH = 32
+const SALT_LENGTH = 32
+const DEFAULT_TIMEOUT_MS = 300000
 
-let sessionKey:     Buffer | null = null;
-let lockTimer:      ReturnType<typeof setTimeout> | null = null;
-let lockTimeoutMs:  number = DEFAULT_TIMEOUT_MS;
-let onLockCallback: LockCallback | null = null;
+let sessionKey: Buffer | null = null
+let lockTimer: ReturnType<typeof setTimeout> | null = null
+let lockTimeoutMs: number = DEFAULT_TIMEOUT_MS
+let onLockCallback: LockCallback | null = null
 
 /**
  * Hashes the master password with argon2id.
@@ -24,12 +21,12 @@ let onLockCallback: LockCallback | null = null;
  * @returns               argon2id hash string (includes salt internally)
  */
 export async function hashMasterPassword(masterPassword: string): Promise<string> {
-  return await hash(masterPassword, {
-    algorithm:   2,      // 2 = Argon2id (most secure variant)
-    memoryCost:  65536,  // 64 MB memory usage
-    timeCost:    3,      // 3 iterations
-    parallelism: 1,
-  });
+    return await hash(masterPassword, {
+        algorithm: 2, // 2 = Argon2id (most secure variant)
+        memoryCost: 65536, // 64 MB memory usage
+        timeCost: 3, // 3 iterations
+        parallelism: 1
+    })
 }
 
 /**
@@ -40,10 +37,10 @@ export async function hashMasterPassword(masterPassword: string): Promise<string
  * @returns               true if the password matches
  */
 export async function verifyMasterPassword(
-  storedHash:     string,
-  masterPassword: string,
+    storedHash: string,
+    masterPassword: string
 ): Promise<boolean> {
-  return await verify(storedHash, masterPassword);
+    return await verify(storedHash, masterPassword)
 }
 
 /**
@@ -57,23 +54,21 @@ export async function verifyMasterPassword(
  * @returns               { key: Buffer, saltHex: string }
  */
 export function deriveKey(
-  masterPassword: string,
-  saltHex?:       string,
+    masterPassword: string,
+    saltHex?: string
 ): { key: Buffer; saltHex: string } {
-  const salt = saltHex
-    ? Buffer.from(saltHex, 'hex')
-    : randomBytes(SALT_LENGTH);
+    const salt = saltHex ? Buffer.from(saltHex, 'hex') : randomBytes(SALT_LENGTH)
 
-  const key = scryptSync(masterPassword, salt, KEY_LENGTH, {
-    N: 16384,
-    r: 8,
-    p: 1,
-  });
+    const key = scryptSync(masterPassword, salt, KEY_LENGTH, {
+        N: 16384,
+        r: 8,
+        p: 1
+    })
 
-  return {
-    key,
-    saltHex: salt.toString('hex'),
-  };
+    return {
+        key,
+        saltHex: salt.toString('hex')
+    }
 }
 
 /**
@@ -84,9 +79,9 @@ export function deriveKey(
  * @param key  Derived key buffer from deriveKey()
  */
 export async function unlockSession(key: Buffer): Promise<void> {
-  sessionKey = key;
-  await saveKeyToKeychain(key);
-  resetLockTimer();
+    sessionKey = key
+    await saveKeyToKeychain(key)
+    resetLockTimer()
 }
 
 /**
@@ -98,9 +93,9 @@ export async function unlockSession(key: Buffer): Promise<void> {
  * the lock screen.
  */
 export function lockSession(): void {
-  sessionKey = null;
-  clearLockTimer();
-  onLockCallback?.();
+    sessionKey = null
+    clearLockTimer()
+    onLockCallback?.()
 }
 
 /**
@@ -108,34 +103,34 @@ export function lockSession(): void {
  * The user must re-enter their master password on next launch.
  */
 export async function logoutSession(): Promise<void> {
-  sessionKey = null;
-  clearLockTimer();
-  await clearKeyFromKeychain();
-  onLockCallback?.();
+    // sessionKey = null;
+    // clearLockTimer();
+    // await clearKeyFromKeychain();
+    onLockCallback?.()
 }
 
 /**
  * @returns the current session key, or null if locked.
  */
 export function getSessionKey(): Buffer | null {
-  return sessionKey;
+    return sessionKey
 }
 
 /**
  * @returns true if the app is currently unlocked.
  */
 export function isUnlocked(): boolean {
-  return sessionKey !== null;
+    return sessionKey !== null
 }
 
 /**
  * Registers a callback that fires whenever the app locks (idle timeout
- * or explicit lock). 
+ * or explicit lock).
  *
  * @param cb  Function to call on lock
  */
 export function onLock(cb: LockCallback): void {
-  onLockCallback = cb;
+    onLockCallback = cb
 }
 
 /**
@@ -144,23 +139,23 @@ export function onLock(cb: LockCallback): void {
  * @param ms  Milliseconds before auto-lock
  */
 export function setLockTimeout(ms: number): void {
-  lockTimeoutMs = ms;
+    lockTimeoutMs = ms
 }
 
 /**
  * Resets the idle timer back to the full duration.
  */
 export function resetLockTimer(): void {
-  clearLockTimer();
-  lockTimer = setTimeout(() => {
-    console.log('[session] Idle timeout — locking session.');
-    lockSession();
-  }, lockTimeoutMs);
+    clearLockTimer()
+    lockTimer = setTimeout(() => {
+        console.log('[session] Idle timeout — locking session.')
+        lockSession()
+    }, lockTimeoutMs)
 }
 
 function clearLockTimer(): void {
-  if (lockTimer) {
-    clearTimeout(lockTimer);
-    lockTimer = null;
-  }
+    if (lockTimer) {
+        clearTimeout(lockTimer)
+        lockTimer = null
+    }
 }

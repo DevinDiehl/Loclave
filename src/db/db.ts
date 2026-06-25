@@ -388,6 +388,24 @@ export function replaceVaultData(snapshot: VaultRestoreSnapshot): void {
 }
 
 /**
+ * Permanently removes all vault data and settings.
+ */
+export function deleteAllData(): void {
+  const database = getDb();
+
+  const clear = database.transaction(() => {
+    database.prepare(`DELETE FROM entries`).run();
+    database.prepare(`DELETE FROM folders`).run();
+    database.prepare(`DELETE FROM settings`).run();
+    database
+      .prepare(`DELETE FROM sqlite_sequence WHERE name IN ('entries', 'folders')`)
+      .run();
+  });
+
+  clear();
+}
+
+/**
  * @writes a setting value (INSERT or REPLACE).
  */
 export function setSetting(key: string, value: string | number | boolean): void {

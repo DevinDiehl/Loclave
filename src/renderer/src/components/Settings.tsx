@@ -50,6 +50,8 @@ export default function SettingsPanel({ onClose, onSettingsSaved }: SettingsProp
   const [confirmPassword, setConfirmPassword] = useState('')
   const [passwordChangeError, setPasswordChangeError] = useState<string | null>(null)
   const [passwordChangeLoading, setPasswordChangeLoading] = useState(false)
+  const [deleteAllDataLoading, setDeleteAllDataLoading] = useState(false)
+  const [deleteAllDataError, setDeleteAllDataError] = useState<string | null>(null)
 
   // Security settings
   const [autoLock, setAutoLock] = useState<AutoLockDuration>('5min')
@@ -186,6 +188,22 @@ export default function SettingsPanel({ onClose, onSettingsSaved }: SettingsProp
     }
   }
 
+  async function handleDeleteAllData() {
+    setDeleteAllDataError(null)
+
+    try {
+      setDeleteAllDataLoading(true)
+      const result = await window.api.deleteAllData()
+
+      if (result.canceled) {
+        setDeleteAllDataLoading(false)
+      }
+    } catch (err) {
+      setDeleteAllDataError(err instanceof Error ? err.message : 'Failed to delete all data')
+      setDeleteAllDataLoading(false)
+    }
+  }
+
 
   return (
     <>
@@ -279,9 +297,16 @@ export default function SettingsPanel({ onClose, onSettingsSaved }: SettingsProp
                 <button className="sp-danger-btn" onClick={() => setShowChangePasswordModal(true)}>
                   <LockIcon /> Change Master Password
                 </button>
-                <button className="sp-danger-btn sp-danger-btn-red">
-                  <TrashIcon /> Delete All Data
+                <button
+                  className="sp-danger-btn sp-danger-btn-red"
+                  onClick={handleDeleteAllData}
+                  disabled={deleteAllDataLoading}
+                >
+                  <TrashIcon /> {deleteAllDataLoading ? 'Deleting...' : 'Delete All Data'}
                 </button>
+                {deleteAllDataError && (
+                  <p className="sp-status sp-status-error">{deleteAllDataError}</p>
+                )}
               </div>
             </div>
           )}
@@ -1013,6 +1038,11 @@ const STYLES = `
   .sp-danger-btn:hover {
     background:     rgba(255,255,255,0.06);
     color:          rgba(255,255,255,0.8);
+  }
+
+  .sp-danger-btn:disabled {
+    opacity:        0.55;
+    cursor:         not-allowed;
   }
 
   .sp-danger-btn-red {

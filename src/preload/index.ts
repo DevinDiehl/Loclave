@@ -58,6 +58,7 @@ export interface Api {
         entryCount?: number
         folderCount?: number
     }>
+    deleteAllData: () => Promise<{ success: boolean; canceled: boolean }>
     changeMasterPassword: (currentPassword: string, newPassword: string) => Promise<void>
     verifyMasterPassword: (password: string) => Promise<boolean>
     fetchFavicon: (domain: string) => Promise<string | null>
@@ -231,6 +232,10 @@ contextBridge.exposeInMainWorld('api', {
         folderCount?: number
     }> => {
         return await ipcRenderer.invoke('settings:importVault')
+    },
+
+    deleteAllData: async (): Promise<{ success: boolean; canceled: boolean }> => {
+        return await ipcRenderer.invoke('settings:deleteAllData')
     },
 
     changeMasterPassword: async (currentPassword: string, newPassword: string): Promise<void> => {

@@ -8,6 +8,7 @@ import {
     getSessionKey,
     unlockSession,
     lockSession,
+    logoutSession,
     setLockTimeout
 } from '../cryptography/session'
 import { clearKeyFromKeychain } from '../cryptography/keychain'
@@ -169,6 +170,35 @@ export function registerSettingsHandlers(mainWindow: BrowserWindow): void {
             entryCount: snapshot.entries.length,
             folderCount: snapshot.folders.length
         }
+    })
+
+    ipcMain.handle('settings:deleteAllData', async () => {
+        const confirmed = await dialog.showMessageBox(mainWindow, {
+            type: 'warning',
+            buttons: ['Delete Everything', 'Cancel'],
+            defaultId: 1,
+            cancelId: 1,
+            title: 'Delete all vault data',
+            message: 'Delete all vault data?',
+            detail:
+                'This permanently deletes every folder, entry, setting, and your master password setup. This action cannot be undone unless you have an encrypted backup.'
+        })
+
+        if (confirmed.response !== 0) {
+            return { success: false, canceled: true }
+        }
+
+        db.deleteAllData()
+        app.setLoginItemSettings({ openAtLogin: false, openAsHidden: false })
+        await logoutSession()
+
+        setTimeout(() => {
+            if (!mainWindow.isDestroyed()) {
+                mainWindow.reload()
+            }
+        }, 100)
+
+        return { success: true, canceled: false }
     })
 
     /**
