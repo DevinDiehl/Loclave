@@ -36,9 +36,10 @@ type Theme = 'dark' | 'darker' | 'midnight'
 
 interface SettingsProps {
   onClose: () => void
+  onSettingsSaved?: () => void
 }
 
-export default function SettingsPanel({ onClose }: SettingsProps) {
+export default function SettingsPanel({ onClose, onSettingsSaved }: SettingsProps) {
   const [mounted, setMounted] = useState(false)
   const [activeTab, setActiveTab] = useState<'security' | 'appearance' | 'general'>('security')
   
@@ -96,6 +97,7 @@ export default function SettingsPanel({ onClose }: SettingsProps) {
     await window.api.saveStartOnLogin(startOnLogin);
     await window.api.saveMinimizeToTray(minimizeToTray);
     await window.api.saveCheckBreaches(checkBreaches);
+    onSettingsSaved?.();
     onClose();
   }
 

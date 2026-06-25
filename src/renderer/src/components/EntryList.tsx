@@ -6,7 +6,7 @@ import EntryForm from './EntryForm'
 
 type FaviconCache = Record<string, string | null>
 
-export default function EntryList({ selectedFolderId, folders }: EntryListProps) {
+export default function EntryList({ selectedFolderId, folders, settingsVersion = 0 }: EntryListProps) {
   const [entries,      setEntries]      = useState<Entry[]>([])
   const [loading,      setLoading]      = useState(false)
   const [search,       setSearch]       = useState('')
@@ -50,7 +50,7 @@ export default function EntryList({ selectedFolderId, folders }: EntryListProps)
     } finally {
       setLoading(false)
     }
-  }, [selectedFolderId, search])
+  }, [selectedFolderId, search, settingsVersion])
 
   useEffect(() => {
     loadEntries()
@@ -60,8 +60,9 @@ export default function EntryList({ selectedFolderId, folders }: EntryListProps)
     (async () => {
       const showFav = await window.api.getSetting('showFavicons')
       setShowFavicons(showFav === 'true')
+      setFaviconCache({})
     })()
-  }, [])
+  }, [settingsVersion])
 
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 30)

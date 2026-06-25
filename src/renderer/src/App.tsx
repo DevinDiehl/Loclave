@@ -10,6 +10,7 @@ export default function App() {
   const [isFirstLaunch, setIsFirstLaunch] = useState(false)
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null)
   const [folders, setFolders] = useState<Folder[]>([])
+  const [settingsVersion, setSettingsVersion] = useState(0)
   useEffect(() => {
     async function init() {
       const first     = await window.api.isFirstLaunch()
@@ -91,12 +92,14 @@ return (
       selectedFolderId={selectedFolderId}
       onSelectFolder={setSelectedFolderId}
       onFoldersChange={loadFolders}   // re-sync when folders are added/deleted
+      onSettingsChange={() => setSettingsVersion(version => version + 1)}
     />
     <main style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       <DragBar/>
       <EntryList
         selectedFolderId={selectedFolderId}
         folders={folders}
+        settingsVersion={settingsVersion}
       />
     </main>
   </div>

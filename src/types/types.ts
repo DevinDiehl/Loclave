@@ -51,12 +51,14 @@ export interface EntryFormProps {
 export interface EntryListProps {
   selectedFolderId: number | null
   folders:          Folder[]
+  settingsVersion?: number
 }
 
 export interface SidebarProps {
   selectedFolderId: number | null
   onSelectFolder:   (id: number | null) => void
   onFoldersChange?:  () => void   
+  onSettingsChange?: () => void
 }
 
 export interface UnlockScreenProps {

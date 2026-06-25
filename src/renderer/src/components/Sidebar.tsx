@@ -6,7 +6,12 @@ import SettingsPanel from './Settings'
 
 
 
-export default function Sidebar({ selectedFolderId, onSelectFolder, onFoldersChange }: SidebarProps) {
+export default function Sidebar({
+  selectedFolderId,
+  onSelectFolder,
+  onFoldersChange,
+  onSettingsChange
+}: SidebarProps) {
   const [folders,       setFolders]       = useState<Folder[]>([])
   const [collapsed,     setCollapsed]     = useState(false)
   const [creating,      setCreating]      = useState(false)
@@ -92,7 +97,12 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onFoldersCha
   return (
     <>
       <style>{STYLES}</style>
-          {ShowSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
+          {ShowSettings && (
+            <SettingsPanel
+              onClose={() => setShowSettings(false)}
+              onSettingsSaved={onSettingsChange}
+            />
+          )}
 
       <aside
         className="sidebar"
