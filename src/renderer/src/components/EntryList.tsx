@@ -1,10 +1,12 @@
 
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, type Dispatch, type SetStateAction } from 'react'
 import type { Entry, EntryListProps } from '../../../types/types'
 import EntryForm from './EntryForm'
 
-export default function EntryList({ selectedFolderId, folders }: EntryListProps) {
+type FaviconCache = Record<string, string | null>
+
+export default function EntryList({ selectedFolderId, folders, settingsVersion = 0, theme = 'dark' }: EntryListProps) {
   const [entries,      setEntries]      = useState<Entry[]>([])
   const [loading,      setLoading]      = useState(false)
   const [search,       setSearch]       = useState('')
@@ -13,6 +15,17 @@ export default function EntryList({ selectedFolderId, folders }: EntryListProps)
   const [copiedId,     setCopiedId]     = useState<number | null>(null)
   const [deletingId,   setDeletingId]   = useState<number | null>(null)
   const [mounted,      setMounted]      = useState(false)
+  
+  // Password verification modal
+  const [showVerifyModal, setShowVerifyModal] = useState(false)
+  const [verifyPassword, setVerifyPassword] = useState('')
+  const [verifyError, setVerifyError] = useState<string | null>(null)
+  const [verifyLoading, setVerifyLoading] = useState(false)
+  const [pendingEntry, setPendingEntry] = useState<Entry | null>(null)
+  
+  // Favicon setting and cache
+  const [showFavicons, setShowFavicons] = useState(false)
+  const [faviconCache, setFaviconCache] = useState<FaviconCache>({})
 
   // ── Load entries ────────────────────────────────────────────────────────────
 
@@ -31,17 +44,39 @@ export default function EntryList({ selectedFolderId, folders }: EntryListProps)
       } else {
         data = await window.api.getEntriesByFolder(selectedFolderId)
       }
-      setEntries(data)
+
+      const checkBreachesEnabled = (await window.api.getSetting('checkBreaches')) === 'true'
+      const enrichedEntries = checkBreachesEnabled
+        ? await Promise.all(data.map(async (entry) => {
+            try {
+              const breach = await window.api.checkPasswordBreach(entry.password)
+              return { ...entry, breachCount: breach.count > 0 ? breach.count : 0 }
+            } catch (error) {
+              console.error('[EntryList] breach check failed:', error)
+              return { ...entry, breachCount: 0 }
+            }
+          }))
+        : data.map((entry) => ({ ...entry, breachCount: 0 }))
+
+      setEntries(enrichedEntries)
     } catch (e) {
       console.error('[EntryList] load failed:', e)
     } finally {
       setLoading(false)
     }
-  }, [selectedFolderId, search])
+  }, [selectedFolderId, search, settingsVersion])
 
   useEffect(() => {
     loadEntries()
   }, [loadEntries])
+
+  useEffect(() => {
+    (async () => {
+      const showFav = await window.api.getSetting('showFavicons')
+      setShowFavicons(showFav === 'true')
+      setFaviconCache({})
+    })()
+  }, [settingsVersion])
 
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 30)
@@ -49,16 +84,61 @@ export default function EntryList({ selectedFolderId, folders }: EntryListProps)
   }, [])
 
   // ── Actions ─────────────────────────────────────────────────────────────────
-
+  
   async function copyPassword(entry: Entry, e: React.MouseEvent) {
     e.stopPropagation()
+    
+    // Check if require password on copy is enabled
+    const requirePassword = await window.api.getSetting('requirePasswordOnCopy')
+    if (requirePassword === 'true') {
+      setPendingEntry(entry)
+      setShowVerifyModal(true)
+      setVerifyPassword('')
+      setVerifyError(null)
+      return
+    }
+    
+    // If not required, copy directly
     try {
       const plain = await window.api.decryptPassword(entry.password)
-      await navigator.clipboard.writeText(plain)
       setCopiedId(entry.id)
       setTimeout(() => setCopiedId(null), 2000)
-    } catch {
-      console.error('Failed to copy password')
+      await window.api.copyWithTimeout(plain)
+    } catch (error) {
+      console.error('Failed to copy password', error)
+    }
+  }
+
+  async function handleVerifyAndCopy() {
+    if (!pendingEntry) return
+    
+    setVerifyError(null)
+    setVerifyLoading(true)
+    
+    try {
+      // Verify the password with the main process
+      const isValid = await window.api.verifyMasterPassword(verifyPassword)
+      if (!isValid) {
+        setVerifyError('Incorrect master password')
+        setVerifyLoading(false)
+        return
+      }
+      
+      // Password verified, copy the entry password
+      const plain = await window.api.decryptPassword(pendingEntry.password)
+      setCopiedId(pendingEntry.id)
+      setTimeout(() => setCopiedId(null), 2000)
+      await window.api.copyWithTimeout(plain)
+      
+      // Close modal and reset
+      setShowVerifyModal(false)
+      setVerifyPassword('')
+      setPendingEntry(null)
+    } catch (error) {
+      console.error('Failed to verify and copy', error)
+      setVerifyError('Failed to copy password')
+    } finally {
+      setVerifyLoading(false)
     }
   }
 
@@ -109,6 +189,9 @@ export default function EntryList({ selectedFolderId, folders }: EntryListProps)
 
   const getFolderName = (folderId: number) =>
     folders.find(f => f.id === folderId)?.name ?? ''
+  
+
+ 
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
@@ -116,7 +199,7 @@ export default function EntryList({ selectedFolderId, folders }: EntryListProps)
     <>
       <style>{STYLES}</style>
 
-      <div className="el-root">
+      <div className="el-root" style={{ background: theme === 'light' ? '#f7f8fc' : '#0f0f16', color: theme === 'light' ? '#18202c' : '#f0eeff' }}>
 
         {/* ── Toolbar ──────────────────────────────────────────────────── */}
         <div className="el-toolbar" style={{
@@ -194,10 +277,8 @@ export default function EntryList({ selectedFolderId, folders }: EntryListProps)
                     transition:`opacity 0.3s ease ${i * 0.04}s, transform 0.3s ease ${i * 0.04}s`,
                   }}
                 >
-                  {/* Avatar */}
-                  <div className="el-avatar" style={{ background: avatarColor(entry.title) }}>
-                    {entry.title.charAt(0).toUpperCase()}
-                  </div>
+                  {/* Avatar or Favicon */}
+                  <AvatarDisplay entry={entry} showFavicons={showFavicons} faviconCache={faviconCache} setFaviconCache={setFaviconCache} />
 
                   {/* Info */}
                   <div className="el-card-info">
@@ -227,6 +308,20 @@ export default function EntryList({ selectedFolderId, folders }: EntryListProps)
                     >
                       {copiedId === entry.id ? <CheckIcon /> : <CopyIcon />}
                     </button>
+
+                    {(entry.breachCount ?? 0) > 0 && (
+                      <span className="el-breach-wrapper">
+                        <span
+                          className="el-breach-indicator"
+                          aria-label="Password breach detected"
+                        >
+                          <AlertTriangleIcon />
+                        </span>
+                        <span className="el-breach-tooltip" role="tooltip">
+                          This password appeared in {entry.breachCount?.toLocaleString()} known data breach{(entry.breachCount ?? 0) === 1 ? '' : 's'}.
+                        </span>
+                      </span>
+                    )}
 
                     {/* Delete */}
                     <button
@@ -262,8 +357,120 @@ export default function EntryList({ selectedFolderId, folders }: EntryListProps)
           onCancel={() => { setShowForm(false); setEditingEntry(null) }}
         />
       )}
+
+      {/* ── Password Verification Modal ──────────────────────────────── */}
+      {showVerifyModal && (
+        <>
+          <div
+            className="el-backdrop"
+            onClick={() => !verifyLoading && setShowVerifyModal(false)}
+          />
+          <div className="el-verify-modal">
+            <h3 className="el-verify-title">Enter Master Password</h3>
+            <p className="el-verify-subtitle">Required to copy password</p>
+            
+            <input
+              type="password"
+              className="el-verify-input"
+              placeholder="Master password"
+              value={verifyPassword}
+              onChange={(e) => setVerifyPassword(e.target.value)}
+              disabled={verifyLoading}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !verifyLoading) {
+                  handleVerifyAndCopy()
+                }
+              }}
+              autoFocus
+            />
+            
+            {verifyError && (
+              <p className="el-verify-error">{verifyError}</p>
+            )}
+            
+            <div className="el-verify-actions">
+              <button
+                className="el-verify-btn-cancel"
+                onClick={() => setShowVerifyModal(false)}
+                disabled={verifyLoading}
+              >
+                Cancel
+              </button>
+              <button
+                className="el-verify-btn-confirm"
+                onClick={handleVerifyAndCopy}
+                disabled={verifyLoading || !verifyPassword}
+              >
+                {verifyLoading ? 'Verifying...' : 'Verify & Copy'}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </>
   )
+}
+
+// ─── Avatar Display Component ─────────────────────────────────────────────────
+
+function AvatarDisplay({ entry, showFavicons, faviconCache, setFaviconCache }: { entry: Entry, showFavicons: boolean, faviconCache: FaviconCache, setFaviconCache: Dispatch<SetStateAction<FaviconCache>> }) {
+  const [faviconError, setFaviconError] = useState(false)
+  const [faviconUrl, setFaviconUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!showFavicons || !entry.url) return
+
+    const loadFavicon = async () => {
+      try {
+        const domain = extractDomain(entry.url || '')
+        if (!domain) return
+
+        // Check cache
+        if (faviconCache[domain]) {
+          setFaviconUrl(faviconCache[domain])
+          return
+        }
+
+        // Fetch from main process
+        const dataUri = await window.api.fetchFavicon(domain)
+        if (dataUri) {
+          setFaviconCache(prev => ({ ...prev, [domain]: dataUri }))
+          setFaviconUrl(dataUri)
+        }
+      } catch (error) {
+        console.error('Failed to load favicon:', error)
+        setFaviconError(true)
+      }
+    }
+
+    loadFavicon()
+  }, [entry.url, showFavicons, faviconCache, setFaviconCache])
+
+  if (showFavicons && faviconUrl && !faviconError) {
+    return (
+      <img
+        src={faviconUrl}
+        alt={entry.title}
+        className="el-favicon"
+        onError={() => setFaviconError(true)}
+      />
+    )
+  }
+
+  return (
+    <div className="el-avatar" style={{ background: avatarColor(entry.title) }}>
+      {entry.title.charAt(0).toUpperCase()}
+    </div>
+  )
+}
+
+function extractDomain(url: string): string | null {
+  try {
+    const urlObj = new URL(url)
+    return urlObj.hostname
+  } catch {
+    return null
+  }
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -296,6 +503,9 @@ function CopyIcon() {
 }
 function CheckIcon() {
   return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+}
+function AlertTriangleIcon() {
+  return <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
 }
 function TrashIcon() {
   return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
@@ -345,7 +555,7 @@ const STYLES = `
     font-family:    'DM Serif Display', serif;
     font-size:      22px;
     font-weight:    400;
-    color:          #f0eeff;
+    color:          inherit;
     letter-spacing: -0.02em;
     margin:         0;
   }
@@ -353,7 +563,8 @@ const STYLES = `
   .el-count {
     font-family:    'DM Mono', monospace;
     font-size:      11px;
-    color:          rgba(255,255,255,0.2);
+    color:          inherit;
+    opacity:        0.3;
     letter-spacing: 0.04em;
   }
 
@@ -383,10 +594,10 @@ const STYLES = `
   .el-search {
     width:          100%;
     padding:        9px 32px 9px 34px;
-    background:     rgba(255,255,255,0.04);
-    border:         1px solid rgba(255,255,255,0.07);
+    background:     rgba(124,109,216,0.08);
+    border:         1px solid rgba(124,109,216,0.16);
     border-radius:  9px;
-    color:          rgba(255,255,255,0.8);
+    color:          inherit;
     font-family:    'DM Sans', sans-serif;
     font-size:      13px;
     outline:        none;
@@ -394,10 +605,10 @@ const STYLES = `
     letter-spacing: 0.01em;
   }
 
-  .el-search::placeholder { color: rgba(255,255,255,0.2); }
+  .el-search::placeholder { color: rgba(15,23,42,0.32); }
   .el-search:focus {
-    border-color:   rgba(168,148,255,0.4);
-    background:     rgba(255,255,255,0.06);
+    border-color:   rgba(124,109,216,0.35);
+    background:     rgba(124,109,216,0.12);
   }
 
   .el-search-clear {
@@ -421,7 +632,7 @@ const STYLES = `
     align-items:    center;
     gap:            7px;
     padding:        9px 16px;
-    background:     linear-gradient(135deg, rgba(168,148,255,0.85), rgba(108,80,220,0.85));
+    background:     linear-gradient(135deg, rgba(124,109,216,0.9), rgba(108,80,220,0.9));
     border:         none;
     border-radius:  9px;
     color:          #fff;
@@ -543,8 +754,8 @@ const STYLES = `
     align-items:    center;
     gap:            14px;
     padding:        14px 16px;
-    background:     rgba(255,255,255,0.03);
-    border:         1px solid rgba(255,255,255,0.06);
+    background:     rgba(124,109,216,0.06);
+    border:         1px solid rgba(124,109,216,0.12);
     border-radius:  12px;
     cursor:         pointer;
     position:       relative;
@@ -552,8 +763,8 @@ const STYLES = `
   }
 
   .el-card:hover {
-    background:     rgba(255,255,255,0.055);
-    border-color:   rgba(168,148,255,0.2);
+    background:     rgba(124,109,216,0.1);
+    border-color:   rgba(124,109,216,0.2);
     transform:      translateX(2px);
   }
 
@@ -573,6 +784,20 @@ const STYLES = `
     letter-spacing: -0.01em;
   }
 
+  /* ── Favicon ───────────────────────────────────────────────────── */
+
+  .el-favicon {
+    width:          40px;
+    height:         40px;
+    border-radius:  11px;
+    flex-shrink:    0;
+    display:        block;
+    object-fit:     contain;
+    background:     rgba(255,255,255,0.02);
+    padding:        4px;
+    box-sizing:     border-box;
+  }
+
   /* ── Card info ────────────────────────────────────────────────── */
 
   .el-card-info {
@@ -585,7 +810,7 @@ const STYLES = `
     font-family:    'DM Sans', sans-serif;
     font-size:      14px;
     font-weight:    500;
-    color:          rgba(255,255,255,0.85);
+    color:          inherit;
     margin:         0 0 3px;
     white-space:    nowrap;
     overflow:       hidden;
@@ -596,7 +821,8 @@ const STYLES = `
   .el-card-sub {
     font-family:    'DM Mono', monospace;
     font-size:      11px;
-    color:          rgba(255,255,255,0.28);
+    color:          inherit;
+    opacity:        0.45;
     margin:         0;
     white-space:    nowrap;
     overflow:       hidden;
@@ -626,15 +852,17 @@ const STYLES = `
     background:     none;
     border:         none;
     border-radius:  7px;
-    color:          rgba(255,255,255,0.3);
+    color:          inherit;
+    opacity:        0.55;
     cursor:         pointer;
     transition:     background 0.15s, color 0.15s;
     flex-shrink:    0;
   }
 
   .el-icon-btn:hover {
-    background:     rgba(255,255,255,0.07);
-    color:          rgba(255,255,255,0.75);
+    background:     rgba(124,109,216,0.1);
+    color:          #7c6dd8;
+    opacity:        1;
   }
 
   .el-fav-active {
@@ -656,6 +884,56 @@ const STYLES = `
     color:          #f87171 !important;
   }
 
+  .el-breach-wrapper {
+    position:       relative;
+    display:        inline-flex;
+    align-items:    center;
+    justify-content:center;
+  }
+
+  .el-breach-indicator {
+    display:        inline-flex;
+    align-items:    center;
+    justify-content:center;
+    width:          28px;
+    height:         28px;
+    border-radius:  7px;
+    color:          #f87171;
+    background:     rgba(248,113,113,0.1);
+    flex-shrink:    0;
+    cursor:         help;
+  }
+
+  .el-breach-indicator:hover {
+    background:     rgba(248,113,113,0.16);
+  }
+
+  .el-breach-tooltip {
+    position:       absolute;
+    right:          0;
+    bottom:         calc(100% + 8px);
+    padding:        8px 10px;
+    border-radius:  8px;
+    background:     rgba(17, 24, 39, 0.96);
+    color:          #fef2f2;
+    font-family:    'DM Sans', sans-serif;
+    font-size:      11px;
+    line-height:    1.4;
+    white-space:    nowrap;
+    box-shadow:     0 10px 24px rgba(0,0,0,0.28);
+    border:         1px solid rgba(248,113,113,0.2);
+    opacity:        0;
+    pointer-events: none;
+    transform:      translateY(4px);
+    transition:     opacity 0.15s ease, transform 0.15s ease;
+    z-index:        20;
+  }
+
+  .el-breach-wrapper:hover .el-breach-tooltip {
+    opacity:        1;
+    transform:      translateY(0);
+  }
+
   /* ── Folder badge ─────────────────────────────────────────────── */
 
   .el-folder-badge {
@@ -667,10 +945,165 @@ const STYLES = `
     gap:            4px;
     font-family:    'DM Mono', monospace;
     font-size:      9px;
-    color:          rgba(255,255,255,0.18);
+    color:          inherit;
+    opacity:        0.28;
     letter-spacing: 0.04em;
     pointer-events: none;
   }
 
   @keyframes el-spin { to { transform: rotate(360deg); } }
+
+  /* ── Verification Modal ───────────────────────────────────────── */
+
+  .el-backdrop {
+    position:       fixed;
+    inset:          0;
+    background:     rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px);
+    z-index:        200;
+    animation:      el-backdrop-in 0.2s ease;
+  }
+
+  @keyframes el-backdrop-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .el-verify-modal {
+    position:       fixed;
+    top:            50%;
+    left:           50%;
+    transform:      translate(-50%, -50%);
+    width:          100%;
+    max-width:      340px;
+    padding:        28px 24px;
+    background:     linear-gradient(135deg, rgba(22,22,31,0.95), rgba(14,14,20,0.95));
+    border:         1px solid rgba(168,148,255,0.15);
+    border-radius:  16px;
+    box-shadow:     0 25px 50px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+    z-index:        201;
+    animation:      el-modal-in 0.3s cubic-bezier(0.16,1,0.3,1);
+  }
+
+  @keyframes el-modal-in {
+    from {
+      opacity:      0;
+      transform:    translate(-50%, -50%) scale(0.95);
+    }
+    to {
+      opacity:      1;
+      transform:    translate(-50%, -50%) scale(1);
+    }
+  }
+
+  .el-verify-title {
+    font-family:    'DM Serif Display', serif;
+    font-size:      18px;
+    font-weight:    400;
+    color:          #f0eeff;
+    margin:         0 0 6px;
+    letter-spacing: -0.02em;
+  }
+
+  .el-verify-subtitle {
+    font-family:    'DM Sans', sans-serif;
+    font-size:      12px;
+    color:          rgba(255,255,255,0.35);
+    margin:         0 0 16px;
+    letter-spacing: 0.01em;
+  }
+
+  .el-verify-input {
+    width:          100%;
+    padding:        11px 14px;
+    margin-bottom:  12px;
+    background:     rgba(255,255,255,0.04);
+    border:         1px solid rgba(255,255,255,0.08);
+    border-radius:  10px;
+    font-family:    'DM Sans', sans-serif;
+    font-size:      13px;
+    color:          rgba(255,255,255,0.85);
+    box-sizing:     border-box;
+    transition:     border-color 0.15s, background 0.15s;
+  }
+
+  .el-verify-input:focus {
+    outline:        none;
+    background:     rgba(255,255,255,0.06);
+    border-color:   rgba(168,148,255,0.3);
+  }
+
+  .el-verify-input::placeholder {
+    color:          rgba(255,255,255,0.2);
+  }
+
+  .el-verify-input:disabled {
+    opacity:        0.5;
+    cursor:         not-allowed;
+  }
+
+  .el-verify-error {
+    font-family:    'DM Sans', sans-serif;
+    font-size:      12px;
+    color:          #f87171;
+    margin:         0 0 12px;
+    padding:        8px 10px;
+    background:     rgba(248,113,113,0.08);
+    border:         1px solid rgba(248,113,113,0.2);
+    border-radius:  8px;
+    line-height:    1.4;
+  }
+
+  .el-verify-actions {
+    display:        flex;
+    gap:            10px;
+  }
+
+  .el-verify-btn-cancel {
+    flex:           1;
+    padding:        10px;
+    background:     rgba(255,255,255,0.04);
+    border:         1px solid rgba(255,255,255,0.08);
+    border-radius:  9px;
+    color:          rgba(255,255,255,0.45);
+    font-family:    'DM Sans', sans-serif;
+    font-size:      13px;
+    cursor:         pointer;
+    transition:     background 0.15s, color 0.15s;
+  }
+
+  .el-verify-btn-cancel:hover:not(:disabled) {
+    background:     rgba(255,255,255,0.07);
+    color:          rgba(255,255,255,0.7);
+  }
+
+  .el-verify-btn-cancel:disabled {
+    opacity:        0.5;
+    cursor:         not-allowed;
+  }
+
+  .el-verify-btn-confirm {
+    flex:           1;
+    padding:        10px;
+    background:     linear-gradient(135deg, rgba(168,148,255,0.9), rgba(108,80,220,0.9));
+    border:         none;
+    border-radius:  9px;
+    color:          #fff;
+    font-family:    'DM Sans', sans-serif;
+    font-size:      13px;
+    font-weight:    500;
+    cursor:         pointer;
+    transition:     opacity 0.15s, transform 0.15s;
+    box-shadow:     0 2px 8px rgba(108,80,220,0.3);
+  }
+
+  .el-verify-btn-confirm:hover:not(:disabled) {
+    opacity:        0.9;
+    transform:      translateY(-1px);
+  }
+
+  .el-verify-btn-confirm:disabled {
+    opacity:        0.5;
+    cursor:         not-allowed;
+  }
 `

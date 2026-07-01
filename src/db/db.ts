@@ -67,6 +67,25 @@ function createTables(): void {
 
 const stmts: Record<string, Statement> = {};
 
+interface RestoredFolder {
+  id: number
+  name: string
+  icon?: string | null
+  created_at?: string | null
+  updated_at?: string | null
+}
+
+interface RestoredSetting {
+  key: string
+  value: string
+}
+
+interface VaultRestoreSnapshot {
+  folders: RestoredFolder[]
+  entries: Entry[]
+  settings: RestoredSetting[]
+}
+
 function stmt(key: string, sql: string): Statement {
   if (!stmts[key]) {
     stmts[key] = getDb().prepare(sql);
@@ -145,6 +164,16 @@ export function getEntriesByFolder(folderId: number): Entry[] {
     WHERE  folder_id = ?
     ORDER  BY title COLLATE NOCASE
   `).all(folderId) as Entry[];
+}
+
+/**
+ * @returns all entries in the vault, sorted by folder and title.
+ */
+export function getAllEntries(): Entry[] {
+  return stmt('entries.getAll', `
+    SELECT * FROM entries
+    ORDER BY folder_id, title COLLATE NOCASE
+  `).all() as Entry[];
 }
 
 /**
@@ -290,6 +319,93 @@ export function getSetting(key: string): string | undefined {
 }
 
 /**
+ * @returns all settings as key/value rows.
+ */
+export function getAllSettings(): { key: string; value: string }[] {
+  return stmt('settings.getAll', `
+    SELECT key, value FROM settings ORDER BY key COLLATE NOCASE
+  `).all() as { key: string; value: string }[];
+}
+
+/**
+ * Replaces all vault tables from a validated backup snapshot.
+ */
+export function replaceVaultData(snapshot: VaultRestoreSnapshot): void {
+  const database = getDb();
+
+  const restore = database.transaction(() => {
+    database.prepare(`DELETE FROM entries`).run();
+    database.prepare(`DELETE FROM folders`).run();
+    database.prepare(`DELETE FROM settings`).run();
+
+    const insertFolder = database.prepare(`
+      INSERT INTO folders (id, name, icon, created_at, updated_at)
+      VALUES (@id, @name, @icon, @created_at, @updated_at)
+    `);
+    const insertEntry = database.prepare(`
+      INSERT INTO entries (
+        id, folder_id, title, username, password, url, notes, favorite, created_at, updated_at
+      )
+      VALUES (
+        @id, @folder_id, @title, @username, @password, @url, @notes, @favorite, @created_at, @updated_at
+      )
+    `);
+    const insertSetting = database.prepare(`
+      INSERT INTO settings (key, value) VALUES (@key, @value)
+    `);
+
+    for (const folder of snapshot.folders) {
+      insertFolder.run({
+        id: folder.id,
+        name: folder.name,
+        icon: folder.icon ?? 'folder',
+        created_at: folder.created_at ?? new Date().toISOString(),
+        updated_at: folder.updated_at ?? new Date().toISOString()
+      });
+    }
+
+    for (const entry of snapshot.entries) {
+      insertEntry.run({
+        id: entry.id,
+        folder_id: entry.folder_id,
+        title: entry.title,
+        username: entry.username,
+        password: entry.password,
+        url: entry.url,
+        notes: entry.notes,
+        favorite: entry.favorite,
+        created_at: entry.created_at,
+        updated_at: entry.updated_at
+      });
+    }
+
+    for (const setting of snapshot.settings) {
+      insertSetting.run(setting);
+    }
+  });
+
+  restore();
+}
+
+/**
+ * Permanently removes all vault data and settings.
+ */
+export function deleteAllData(): void {
+  const database = getDb();
+
+  const clear = database.transaction(() => {
+    database.prepare(`DELETE FROM entries`).run();
+    database.prepare(`DELETE FROM folders`).run();
+    database.prepare(`DELETE FROM settings`).run();
+    database
+      .prepare(`DELETE FROM sqlite_sequence WHERE name IN ('entries', 'folders')`)
+      .run();
+  });
+
+  clear();
+}
+
+/**
  * @writes a setting value (INSERT or REPLACE).
  */
 export function setSetting(key: string, value: string | number | boolean): void {
@@ -304,4 +420,3 @@ export function setSetting(key: string, value: string | number | boolean): void 
 export function deleteSetting(key: string): void {
   getDb().prepare(`DELETE FROM settings WHERE key = ?`).run(key);
 }
-

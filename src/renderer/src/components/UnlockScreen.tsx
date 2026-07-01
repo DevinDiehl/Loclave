@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { UnlockScreenProps } from '../../../types/types'
 
-export default function UnlockScreen({ isFirstLaunch, onUnlocked }: UnlockScreenProps) {
+export default function UnlockScreen({ isFirstLaunch, onUnlocked, theme = 'dark' }: UnlockScreenProps) {
   const [password, setPassword]           = useState('')
   const [confirm, setConfirm]             = useState('')
   const [error, setError]                 = useState('')
@@ -63,21 +63,10 @@ export default function UnlockScreen({ isFirstLaunch, onUnlocked }: UnlockScreen
 
 
   }
-    function DragBar() {
-  return (
-    <div
-      style={{
-        height:          '28px',
-        width:           '100%',
-        flexShrink:      0,
-        WebkitAppRegion: 'drag',
-      } as React.CSSProperties}
-    />
-  )
-}
+  
 
   return (
-    <div style={styles.root}>
+    <div style={{ ...styles.root, background: theme === 'light' ? '#f5f6fb' : '#0d0d12' }}>
       
       {/* Ambient background blobs */}
       <div style={styles.blobTopLeft} />
@@ -88,6 +77,9 @@ export default function UnlockScreen({ isFirstLaunch, onUnlocked }: UnlockScreen
       {/* Card */}
       <div style={{
         ...styles.card,
+        background: theme === 'light' ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.03)',
+        border: theme === 'light' ? '1px solid rgba(15,23,42,0.08)' : '1px solid rgba(255,255,255,0.07)',
+        boxShadow: theme === 'light' ? '0 24px 70px rgba(15,23,42,0.08)' : '0 32px 80px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)',
         opacity:    mounted ? 1 : 0,
         transform:  mounted ? 'translateY(0) scale(1)' : 'translateY(16px) scale(0.98)',
         transition: 'opacity 0.5s ease, transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
@@ -110,10 +102,10 @@ export default function UnlockScreen({ isFirstLaunch, onUnlocked }: UnlockScreen
           transform:  mounted ? 'translateY(0)' : 'translateY(8px)',
           transition: 'opacity 0.5s ease 0.18s, transform 0.5s ease 0.18s',
         }}>
-          <h1 style={styles.title}>
+          <h1 style={{ ...styles.title, color: theme === 'light' ? '#18202c' : '#f0eeff' }}>
             {isFirstLaunch ? 'Create Vault' : 'Unlock Vault'}
           </h1>
-          <p style={styles.subtitle}>
+          <p style={{ ...styles.subtitle, color: theme === 'light' ? 'rgba(24,32,44,0.62)' : 'rgba(255,255,255,0.38)' }}>
             {isFirstLaunch
               ? 'Set a master password to protect your vault.'
               : 'Enter your master password to continue.'}
@@ -132,7 +124,7 @@ export default function UnlockScreen({ isFirstLaunch, onUnlocked }: UnlockScreen
         >
           {/* Password field */}
           <div style={styles.fieldWrap}>
-            <label style={styles.label}>
+            <label style={{ ...styles.label, color: theme === 'light' ? 'rgba(24,32,44,0.6)' : 'rgba(255,255,255,0.4)' }}>
               {isFirstLaunch ? 'Master Password' : 'Password'}
             </label>
             <div style={styles.inputRow}>
@@ -144,7 +136,9 @@ export default function UnlockScreen({ isFirstLaunch, onUnlocked }: UnlockScreen
                 placeholder="••••••••••••"
                 style={{
                   ...styles.input,
-                  borderColor: error ? '#f87171' : 'rgba(255,255,255,0.1)',
+                  background: theme === 'light' ? 'rgba(248,250,252,0.95)' : 'rgba(255,255,255,0.05)',
+                  borderColor: error ? '#f87171' : (theme === 'light' ? 'rgba(15,23,42,0.1)' : 'rgba(255,255,255,0.1)'),
+                  color: theme === 'light' ? '#0f172a' : '#f0eeff',
                 }}
                 disabled={loading}
                 autoComplete={isFirstLaunch ? 'new-password' : 'current-password'}
@@ -152,7 +146,7 @@ export default function UnlockScreen({ isFirstLaunch, onUnlocked }: UnlockScreen
               <button
                 type="button"
                 onClick={() => setShowPassword(v => !v)}
-                style={styles.eyeBtn}
+                style={{ ...styles.eyeBtn, color: theme === 'light' ? 'rgba(24,32,44,0.36)' : 'rgba(255,255,255,0.3)' }}
                 tabIndex={-1}
               >
                 {showPassword ? <EyeOffIcon /> : <EyeIcon />}
@@ -163,7 +157,7 @@ export default function UnlockScreen({ isFirstLaunch, onUnlocked }: UnlockScreen
           {/* Confirm field — first launch only */}
           {isFirstLaunch && (
             <div style={styles.fieldWrap}>
-              <label style={styles.label}>Confirm Password</label>
+              <label style={{ ...styles.label, color: theme === 'light' ? 'rgba(24,32,44,0.6)' : 'rgba(255,255,255,0.4)' }}>Confirm Password</label>
               <div style={styles.inputRow}>
                 <input
                   type={showPassword ? 'text' : 'password'}
