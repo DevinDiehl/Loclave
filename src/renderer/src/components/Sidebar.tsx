@@ -10,8 +10,9 @@ export default function Sidebar({
   selectedFolderId,
   onSelectFolder,
   onFoldersChange,
-  onSettingsChange
-}: SidebarProps) {
+  onSettingsChange,
+  theme = 'dark'
+}: SidebarProps & { theme?: 'light' | 'dark' | 'darker' | 'midnight' }) {
   const [folders,       setFolders]       = useState<Folder[]>([])
   const [collapsed,     setCollapsed]     = useState(false)
   const [creating,      setCreating]      = useState(false)
@@ -101,6 +102,7 @@ export default function Sidebar({
             <SettingsPanel
               onClose={() => setShowSettings(false)}
               onSettingsSaved={onSettingsChange}
+              theme={theme}
             />
           )}
 
@@ -108,6 +110,9 @@ export default function Sidebar({
         className="sidebar"
         style={{
           width:     collapsed ? '56px' : '220px',
+          background: theme === 'light' ? '#f8fafc' : '#111118',
+          borderColor: theme === 'light' ? 'rgba(15,23,42,0.08)' : 'rgba(255,255,255,0.06)',
+          color: theme === 'light' ? '#18202c' : 'rgba(255,255,255,0.75)',
           minWidth:  collapsed ? '56px' : '220px',
           opacity:   mounted ? 1 : 0,
           transform: mounted ? 'translateX(0)' : 'translateX(-8px)',
@@ -351,7 +356,8 @@ const STYLES = `
     font-weight:      500;
     letter-spacing:   0.1em;
     text-transform:   uppercase;
-    color:            rgba(255,255,255,0.25);
+    color:            inherit;
+    opacity:          0.45;
     padding-left:     4px;
     margin-top: 20px;
   }
@@ -367,7 +373,8 @@ const STYLES = `
     font-weight:      500;
     letter-spacing:   0.12em;
     text-transform:   uppercase;
-    color:            rgba(255,255,255,0.18);
+    color:            inherit;
+    opacity:          0.32;
     padding:          8px 16px 4px;
   }
 
@@ -399,21 +406,23 @@ const STYLES = `
     margin:           1px 6px;
     position:         relative;
     transition:       background 0.12s ease, color 0.12s ease;
-    color:            rgba(255,255,255,0.45);
+    color:            inherit;
+    opacity:          0.7;
   }
 
   .folder-row:hover {
-    background:       rgba(255,255,255,0.05);
-    color:            rgba(255,255,255,0.75);
+    background:       rgba(124,109,216,0.1);
+    opacity:          1;
   }
 
   .folder-row.selected {
-    background:       rgba(168,148,255,0.12);
-    color:            rgba(168,148,255,0.95);
+    background:       rgba(124,109,216,0.15);
+    color:            #7c6dd8;
+    opacity:          1;
   }
 
   .folder-row.selected .entry-count {
-    color:            rgba(168,148,255,0.6);
+    color:            #7c6dd8;
   }
 
   .folder-icon {
@@ -483,7 +492,8 @@ const STYLES = `
   .empty-hint {
     font-family:      'DM Mono', monospace;
     font-size:        11px;
-    color:            rgba(255,255,255,0.15);
+    color:            inherit;
+    opacity:          0.45;
     padding:          12px 16px;
     letter-spacing:   0.02em;
   }
@@ -493,8 +503,8 @@ const STYLES = `
   .new-folder-form {
     margin:           2px 6px;
     padding:          8px 8px 10px;
-    background:       rgba(168,148,255,0.07);
-    border:           1px solid rgba(168,148,255,0.15);
+    background:       rgba(124,109,216,0.08);
+    border:           1px solid rgba(124,109,216,0.16);
     border-radius:    8px;
   }
 
@@ -502,23 +512,23 @@ const STYLES = `
     display:          flex;
     align-items:      center;
     gap:              9px;
-    color:            rgba(168,148,255,0.7);
+    color:            #7c6dd8;
   }
 
   .new-folder-input {
     flex:             1;
-    background:       none;
+    background:       transparent;
     border:           none;
     outline:          none;
     font-family:      'DM Sans', sans-serif;
     font-size:        13px;
-    color:            rgba(255,255,255,0.85);
-    caret-color:      rgba(168,148,255,0.9);
+    color:            inherit;
+    caret-color:      #7c6dd8;
     letter-spacing:   0.01em;
   }
 
   .new-folder-input::placeholder {
-    color:            rgba(255,255,255,0.2);
+    color:            rgba(15,23,42,0.32);
   }
 
   .new-folder-error {
@@ -543,17 +553,17 @@ const STYLES = `
     letter-spacing:   0.06em;
     text-transform:   uppercase;
     padding:          4px 12px;
-    background:       rgba(168,148,255,0.2);
-    border:           1px solid rgba(168,148,255,0.3);
+    background:       rgba(124,109,216,0.16);
+    border:           1px solid rgba(124,109,216,0.24);
     border-radius:    5px;
-    color:            rgba(168,148,255,0.9);
+    color:            #7c6dd8;
     cursor:           pointer;
     transition:       background 0.15s, border-color 0.15s;
   }
 
   .new-folder-confirm:hover {
-    background:       rgba(168,148,255,0.3);
-    border-color:     rgba(168,148,255,0.5);
+    background:       rgba(124,109,216,0.24);
+    border-color:     rgba(124,109,216,0.36);
   }
 
   .new-folder-cancel {
@@ -562,24 +572,25 @@ const STYLES = `
     letter-spacing:   0.06em;
     text-transform:   uppercase;
     padding:          4px 10px;
-    background:       none;
-    border:           1px solid rgba(255,255,255,0.08);
+    background:       rgba(15,23,42,0.04);
+    border:           1px solid rgba(15,23,42,0.08);
     border-radius:    5px;
-    color:            rgba(255,255,255,0.3);
+    color:            inherit;
+    opacity:          0.75;
     cursor:           pointer;
     transition:       border-color 0.15s, color 0.15s;
   }
 
   .new-folder-cancel:hover {
-    border-color:     rgba(255,255,255,0.2);
-    color:            rgba(255,255,255,0.6);
+    border-color:     rgba(15,23,42,0.16);
+    opacity:          1;
   }
 
   /* ── Footer ──────────────────────────────────────────────────── */
 
   .sidebar-footer {
     padding:          10px 6px 16px;
-    border-top:       1px solid rgba(255,255,255,0.05);
+    border-top:       1px solid rgba(124,109,216,0.14);
   }
 
   .new-folder-btn {
@@ -589,10 +600,10 @@ const STYLES = `
     gap:              8px;
     width:            100%;
     padding:          8px 10px;
-    background:       none;
-    border:           1px dashed rgba(255,255,255,0.1);
+    background:       rgba(124,109,216,0.08);
+    border:           1px dashed rgba(124,109,216,0.16);
     border-radius:    8px;
-    color:            rgba(255,255,255,0.3);
+    color:            inherit;
     font-family:      'DM Sans', sans-serif;
     font-size:        12px;
     cursor:           pointer;
@@ -601,9 +612,9 @@ const STYLES = `
   }
 
   .new-folder-btn:hover:not(:disabled) {
-    border-color:     rgba(168,148,255,0.35);
-    color:            rgba(168,148,255,0.7);
-    background:       rgba(168,148,255,0.05);
+    border-color:     rgba(124,109,216,0.28);
+    color:            #7c6dd8;
+    background:       rgba(124,109,216,0.14);
   }
 
   .new-folder-btn:disabled {

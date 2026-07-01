@@ -53,6 +53,7 @@ export interface EntryListProps {
     selectedFolderId: number | null
     folders: Folder[]
     settingsVersion?: number
+    theme?: 'light' | 'dark' | 'darker' | 'midnight'
 }
 
 export interface SidebarProps {
@@ -60,11 +61,13 @@ export interface SidebarProps {
     onSelectFolder: (id: number | null) => void
     onFoldersChange?: () => void
     onSettingsChange?: () => void
+    theme?: 'light' | 'dark' | 'darker' | 'midnight'
 }
 
 export interface UnlockScreenProps {
     isFirstLaunch: boolean
     onUnlocked: () => void
+    theme?: 'light' | 'dark' | 'darker' | 'midnight'
 }
 
 export interface EncryptedPayload {

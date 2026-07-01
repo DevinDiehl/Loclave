@@ -6,7 +6,7 @@ import EntryForm from './EntryForm'
 
 type FaviconCache = Record<string, string | null>
 
-export default function EntryList({ selectedFolderId, folders, settingsVersion = 0 }: EntryListProps) {
+export default function EntryList({ selectedFolderId, folders, settingsVersion = 0, theme = 'dark' }: EntryListProps) {
   const [entries,      setEntries]      = useState<Entry[]>([])
   const [loading,      setLoading]      = useState(false)
   const [search,       setSearch]       = useState('')
@@ -199,7 +199,7 @@ export default function EntryList({ selectedFolderId, folders, settingsVersion =
     <>
       <style>{STYLES}</style>
 
-      <div className="el-root">
+      <div className="el-root" style={{ background: theme === 'light' ? '#f7f8fc' : '#0f0f16', color: theme === 'light' ? '#18202c' : '#f0eeff' }}>
 
         {/* ── Toolbar ──────────────────────────────────────────────────── */}
         <div className="el-toolbar" style={{
@@ -555,7 +555,7 @@ const STYLES = `
     font-family:    'DM Serif Display', serif;
     font-size:      22px;
     font-weight:    400;
-    color:          #f0eeff;
+    color:          inherit;
     letter-spacing: -0.02em;
     margin:         0;
   }
@@ -563,7 +563,8 @@ const STYLES = `
   .el-count {
     font-family:    'DM Mono', monospace;
     font-size:      11px;
-    color:          rgba(255,255,255,0.2);
+    color:          inherit;
+    opacity:        0.3;
     letter-spacing: 0.04em;
   }
 
@@ -593,10 +594,10 @@ const STYLES = `
   .el-search {
     width:          100%;
     padding:        9px 32px 9px 34px;
-    background:     rgba(255,255,255,0.04);
-    border:         1px solid rgba(255,255,255,0.07);
+    background:     rgba(124,109,216,0.08);
+    border:         1px solid rgba(124,109,216,0.16);
     border-radius:  9px;
-    color:          rgba(255,255,255,0.8);
+    color:          inherit;
     font-family:    'DM Sans', sans-serif;
     font-size:      13px;
     outline:        none;
@@ -604,10 +605,10 @@ const STYLES = `
     letter-spacing: 0.01em;
   }
 
-  .el-search::placeholder { color: rgba(255,255,255,0.2); }
+  .el-search::placeholder { color: rgba(15,23,42,0.32); }
   .el-search:focus {
-    border-color:   rgba(168,148,255,0.4);
-    background:     rgba(255,255,255,0.06);
+    border-color:   rgba(124,109,216,0.35);
+    background:     rgba(124,109,216,0.12);
   }
 
   .el-search-clear {
@@ -631,7 +632,7 @@ const STYLES = `
     align-items:    center;
     gap:            7px;
     padding:        9px 16px;
-    background:     linear-gradient(135deg, rgba(168,148,255,0.85), rgba(108,80,220,0.85));
+    background:     linear-gradient(135deg, rgba(124,109,216,0.9), rgba(108,80,220,0.9));
     border:         none;
     border-radius:  9px;
     color:          #fff;
@@ -753,8 +754,8 @@ const STYLES = `
     align-items:    center;
     gap:            14px;
     padding:        14px 16px;
-    background:     rgba(255,255,255,0.03);
-    border:         1px solid rgba(255,255,255,0.06);
+    background:     rgba(124,109,216,0.06);
+    border:         1px solid rgba(124,109,216,0.12);
     border-radius:  12px;
     cursor:         pointer;
     position:       relative;
@@ -762,8 +763,8 @@ const STYLES = `
   }
 
   .el-card:hover {
-    background:     rgba(255,255,255,0.055);
-    border-color:   rgba(168,148,255,0.2);
+    background:     rgba(124,109,216,0.1);
+    border-color:   rgba(124,109,216,0.2);
     transform:      translateX(2px);
   }
 
@@ -809,7 +810,7 @@ const STYLES = `
     font-family:    'DM Sans', sans-serif;
     font-size:      14px;
     font-weight:    500;
-    color:          rgba(255,255,255,0.85);
+    color:          inherit;
     margin:         0 0 3px;
     white-space:    nowrap;
     overflow:       hidden;
@@ -820,7 +821,8 @@ const STYLES = `
   .el-card-sub {
     font-family:    'DM Mono', monospace;
     font-size:      11px;
-    color:          rgba(255,255,255,0.28);
+    color:          inherit;
+    opacity:        0.45;
     margin:         0;
     white-space:    nowrap;
     overflow:       hidden;
@@ -850,15 +852,17 @@ const STYLES = `
     background:     none;
     border:         none;
     border-radius:  7px;
-    color:          rgba(255,255,255,0.3);
+    color:          inherit;
+    opacity:        0.55;
     cursor:         pointer;
     transition:     background 0.15s, color 0.15s;
     flex-shrink:    0;
   }
 
   .el-icon-btn:hover {
-    background:     rgba(255,255,255,0.07);
-    color:          rgba(255,255,255,0.75);
+    background:     rgba(124,109,216,0.1);
+    color:          #7c6dd8;
+    opacity:        1;
   }
 
   .el-fav-active {
@@ -941,7 +945,8 @@ const STYLES = `
     gap:            4px;
     font-family:    'DM Mono', monospace;
     font-size:      9px;
-    color:          rgba(255,255,255,0.18);
+    color:          inherit;
+    opacity:        0.28;
     letter-spacing: 0.04em;
     pointer-events: none;
   }

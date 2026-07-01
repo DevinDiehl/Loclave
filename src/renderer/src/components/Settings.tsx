@@ -32,14 +32,15 @@ const MS_TO_CLIPBOARD_TIMEOUT: Record<string, ClipboardTimeout> = {
   2_592_000_000: 'never'
 };
 
-type Theme = 'dark' | 'darker' | 'midnight'
+type Theme = 'light' | 'dark' | 'darker' | 'midnight'
 
 interface SettingsProps {
   onClose: () => void
   onSettingsSaved?: () => void
+  theme?: 'light' | 'dark' | 'darker' | 'midnight'
 }
 
-export default function SettingsPanel({ onClose, onSettingsSaved }: SettingsProps) {
+export default function SettingsPanel({ onClose, onSettingsSaved, theme: selectedTheme = 'dark' }: SettingsProps) {
   const [mounted, setMounted] = useState(false)
   const [activeTab, setActiveTab] = useState<'security' | 'appearance' | 'general'>('security')
   
@@ -60,7 +61,27 @@ export default function SettingsPanel({ onClose, onSettingsSaved }: SettingsProp
 
   // Appearance settings
   const [theme, setTheme] = useState<Theme>('dark')
-  const [compactMode, setCompactMode] = useState(false)
+  const isLightTheme = selectedTheme === 'light'
+  const themeVars = {
+    '--sp-modal-bg': isLightTheme ? '#ffffff' : '#16161f',
+    '--sp-surface': isLightTheme ? '#f8fafc' : 'rgba(255,255,255,0.02)',
+    '--sp-surface-strong': isLightTheme ? '#f3f4f6' : 'rgba(255,255,255,0.03)',
+    '--sp-text': isLightTheme ? '#18202c' : '#f0eeff',
+    '--sp-text-muted': isLightTheme ? '#475569' : 'rgba(255,255,255,0.6)',
+    '--sp-text-soft': isLightTheme ? '#64748b' : 'rgba(255,255,255,0.28)',
+    '--sp-text-faint': isLightTheme ? '#94a3b8' : 'rgba(255,255,255,0.2)',
+    '--sp-border': isLightTheme ? 'rgba(15,23,42,0.1)' : 'rgba(255,255,255,0.06)',
+    '--sp-border-strong': isLightTheme ? 'rgba(15,23,42,0.14)' : 'rgba(255,255,255,0.09)',
+    '--sp-hover': isLightTheme ? 'rgba(15,23,42,0.04)' : 'rgba(255,255,255,0.05)',
+    '--sp-input-bg': isLightTheme ? '#ffffff' : 'rgba(255,255,255,0.04)',
+    '--sp-input-border': isLightTheme ? 'rgba(15,23,42,0.16)' : 'rgba(255,255,255,0.08)',
+    '--sp-input-text': isLightTheme ? '#111827' : '#f0eeff',
+    '--sp-input-placeholder': isLightTheme ? '#64748b' : 'rgba(255,255,255,0.2)',
+    '--sp-accent': '#7c6dd8',
+    '--sp-accent-soft': isLightTheme ? 'rgba(124,109,216,0.12)' : 'rgba(168,148,255,0.12)',
+    '--sp-shadow': isLightTheme ? '0 30px 80px rgba(15,23,42,0.12)' : '0 40px 100px rgba(0,0,0,0.6)',
+    colorScheme: isLightTheme ? 'light' : 'dark',
+  } as React.CSSProperties
   const [showFavicons, setShowFavicons] = useState(true)
 
   // General settings
@@ -79,6 +100,7 @@ export default function SettingsPanel({ onClose, onSettingsSaved }: SettingsProp
       setAutoLock(MS_TO_AUTO_LOCK_DURATION[String(await window.api.getSetting('lock_timeout_ms')) as keyof typeof MS_TO_AUTO_LOCK_DURATION] || '5min');
       setClipboardTimeout(MS_TO_CLIPBOARD_TIMEOUT[String(await window.api.getSetting('clipboardTimeout')) as keyof typeof MS_TO_CLIPBOARD_TIMEOUT] || '30s');
       setRequirePasswordOnCopy(await window.api.getSetting('requirePasswordOnCopy') === 'true');
+      setTheme((await window.api.getSetting('theme')) as Theme || 'dark');
       setShowFavicons(await window.api.getSetting('showFavicons') === 'true');
       setStartOnLogin(await window.api.getSetting('startOnLogin') === 'true');
       setMinimizeToTray(await window.api.getSetting('minimizeToTray') === 'true');
@@ -94,7 +116,6 @@ export default function SettingsPanel({ onClose, onSettingsSaved }: SettingsProp
     await window.api.saveClipboardTimeout(CLIPBOARD_TIMEOUT_MS[clipboardTimeout]);
     await window.api.saveRequirePasswordOnCopy(requirePasswordOnCopy);
     await window.api.saveTheme(theme);
-    await window.api.saveCompactMode(compactMode);
     await window.api.saveShowFavicons(showFavicons);
     await window.api.saveStartOnLogin(startOnLogin);
     await window.api.saveMinimizeToTray(minimizeToTray);
@@ -206,7 +227,7 @@ export default function SettingsPanel({ onClose, onSettingsSaved }: SettingsProp
 
 
   return (
-    <>
+    <div style={themeVars}>
       <style>{STYLES}</style>
 
       {/* Backdrop */}
@@ -317,9 +338,9 @@ export default function SettingsPanel({ onClose, onSettingsSaved }: SettingsProp
               <Section title="Theme">
                 <div className="sp-theme-grid">
                   {([
+                    { value: 'light', label: 'Light', bg: '#f7f8fc', accent: '#7c6dd8' },
                     { value: 'dark', label: 'Dark', bg: '#16161f', accent: '#a894ff' },
-                    { value: 'darker', label: 'Darker', bg: '#0e0e14', accent: '#7c6dd8' },
-                    { value: 'midnight', label: 'Midnight', bg: '#080b14', accent: '#60a5fa' },
+                 
                   ] as const).map(t => (
                     <button
                       key={t.value}
@@ -340,12 +361,6 @@ export default function SettingsPanel({ onClose, onSettingsSaved }: SettingsProp
               </Section>
 
               <Section title="Layout">
-                <Toggle
-                  label="Compact mode"
-                  description="Reduce spacing between entries"
-                  checked={compactMode}
-                  onChange={setCompactMode}
-                />
                 <Toggle
                   label="Show website favicons"
                   description="Load icons from external URLs"
@@ -445,6 +460,8 @@ export default function SettingsPanel({ onClose, onSettingsSaved }: SettingsProp
             style={{
               opacity: 1,
               transform: 'translate(-50%, -50%) translateY(0) scale(1)',
+              background: 'var(--sp-modal-bg)',
+              color: 'var(--sp-text)',
             }}
           >
             <div className="sp-header">
@@ -531,7 +548,7 @@ export default function SettingsPanel({ onClose, onSettingsSaved }: SettingsProp
           </div>
         </>
       )}
-    </>
+    </div>
   )
 }
 
@@ -641,13 +658,13 @@ const STYLES = `
     width:          100%;
     max-width:      500px;
     max-height:     90vh;
-    background:     #16161f;
-    border:         1px solid rgba(255,255,255,0.08);
+    background:     var(--sp-modal-bg);
+    border:         1px solid var(--sp-border-strong);
     border-radius:  18px;
     z-index:        101;
     display:        flex;
     flex-direction: column;
-    box-shadow:     0 40px 100px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05);
+    box-shadow:     var(--sp-shadow), inset 0 1px 0 rgba(255,255,255,0.05);
     overflow:       hidden;
   }
 
@@ -665,14 +682,14 @@ const STYLES = `
     display:        flex;
     align-items:    center;
     gap:            9px;
-    color:          rgba(168,148,255,0.7);
+    color:          var(--sp-accent);
   }
 
   .sp-title {
     font-family:    'DM Serif Display', serif;
     font-size:      20px;
     font-weight:    400;
-    color:          #f0eeff;
+    color:          var(--sp-text);
     margin:         0;
     letter-spacing: -0.02em;
   }
@@ -683,17 +700,17 @@ const STYLES = `
     justify-content:center;
     width:          32px;
     height:         32px;
-    background:     rgba(255,255,255,0.05);
+    background:     var(--sp-surface-strong);
     border:         none;
     border-radius:  8px;
-    color:          rgba(255,255,255,0.4);
+    color:          var(--sp-text-muted);
     cursor:         pointer;
     transition:     background 0.15s, color 0.15s;
   }
 
   .sp-close:hover {
-    background:     rgba(255,255,255,0.1);
-    color:          rgba(255,255,255,0.8);
+    background:     var(--sp-hover);
+    color:          var(--sp-text);
   }
 
   /* ── Tabs ─────────────────────────────────────────────────────── */
@@ -715,19 +732,19 @@ const STYLES = `
     font-weight:    500;
     letter-spacing: 0.05em;
     text-transform: uppercase;
-    color:          rgba(255,255,255,0.3);
+    color:          var(--sp-text-soft);
     cursor:         pointer;
     transition:     background 0.15s, color 0.15s;
   }
 
   .sp-tab:hover {
-    background:     rgba(255,255,255,0.05);
-    color:          rgba(255,255,255,0.6);
+    background:     var(--sp-hover);
+    color:          var(--sp-text-muted);
   }
 
   .sp-tab-active {
-    background:     rgba(168,148,255,0.12) !important;
-    color:          rgba(168,148,255,0.9) !important;
+    background:     var(--sp-accent-soft) !important;
+    color:          var(--sp-accent) !important;
   }
 
   /* ── Scroll ───────────────────────────────────────────────────── */
@@ -751,8 +768,8 @@ const STYLES = `
   }
 
   .sp-section {
-    background:     rgba(255,255,255,0.02);
-    border:         1px solid rgba(255,255,255,0.05);
+    background:     var(--sp-surface);
+    border:         1px solid var(--sp-border);
     border-radius:  12px;
     overflow:       hidden;
   }
@@ -763,7 +780,7 @@ const STYLES = `
     font-weight:    500;
     letter-spacing: 0.09em;
     text-transform: uppercase;
-    color:          rgba(255,255,255,0.25);
+    color:          var(--sp-text-faint);
     margin:         0;
     padding:        12px 14px 8px;
     border-bottom:  1px solid rgba(255,255,255,0.04);
@@ -779,7 +796,7 @@ const STYLES = `
   .sp-hint {
     font-family:    'DM Sans', sans-serif;
     font-size:      11px;
-    color:          rgba(255,255,255,0.2);
+    color:          var(--sp-text-soft);
     margin:         6px 0 0;
     line-height:    1.5;
   }
@@ -803,7 +820,7 @@ const STYLES = `
 
   .sp-segmented {
     display:        flex;
-    background:     rgba(255,255,255,0.04);
+    background:     var(--sp-surface-strong);
     border-radius:  8px;
     padding:        3px;
     gap:            2px;
@@ -818,19 +835,19 @@ const STYLES = `
     font-family:    'DM Mono', monospace;
     font-size:      11px;
     font-weight:    500;
-    color:          rgba(255,255,255,0.3);
+    color:          var(--sp-text-soft);
     cursor:         pointer;
     transition:     background 0.15s, color 0.15s;
     letter-spacing: 0.03em;
   }
 
   .sp-seg-btn:hover {
-    color:          rgba(255,255,255,0.6);
+    color:          var(--sp-text-muted);
   }
 
   .sp-seg-btn-active {
-    background:     rgba(168,148,255,0.15) !important;
-    color:          rgba(168,148,255,0.95) !important;
+    background:     var(--sp-accent-soft) !important;
+    color:          var(--sp-accent) !important;
   }
 
   /* ── Toggle ───────────────────────────────────────────────────── */
@@ -863,14 +880,14 @@ const STYLES = `
   .sp-toggle-label {
     font-family:    'DM Sans', sans-serif;
     font-size:      13px;
-    color:          rgba(255,255,255,0.75);
+    color:          var(--sp-text);
     letter-spacing: 0.01em;
   }
 
   .sp-toggle-desc {
     font-family:    'DM Sans', sans-serif;
     font-size:      11px;
-    color:          rgba(255,255,255,0.25);
+    color:          var(--sp-text-soft);
     line-height:    1.4;
   }
 
@@ -878,7 +895,7 @@ const STYLES = `
     flex-shrink:    0;
     width:          36px;
     height:         20px;
-    background:     rgba(255,255,255,0.08);
+    background:     var(--sp-hover);
     border-radius:  10px;
     position:       relative;
     transition:     background 0.2s;
@@ -886,7 +903,7 @@ const STYLES = `
   }
 
   .sp-toggle-on {
-    background:     rgba(168,148,255,0.5) !important;
+    background:     var(--sp-accent) !important;
   }
 
   .sp-toggle-thumb {
@@ -920,21 +937,21 @@ const STYLES = `
     align-items:    center;
     gap:            8px;
     padding:        12px 10px 10px;
-    background:     rgba(255,255,255,0.03);
-    border:         1px solid rgba(255,255,255,0.06);
+    background:     var(--sp-surface-strong);
+    border:         1px solid var(--sp-border);
     border-radius:  10px;
     cursor:         pointer;
     transition:     border-color 0.15s, background 0.15s;
   }
 
   .sp-theme-swatch:hover {
-    background:     rgba(255,255,255,0.05);
-    border-color:   rgba(255,255,255,0.1);
+    background:     var(--sp-hover);
+    border-color:   var(--sp-border-strong);
   }
 
   .sp-theme-swatch-active {
-    border-color:   rgba(168,148,255,0.4) !important;
-    background:     rgba(168,148,255,0.06) !important;
+    border-color:   var(--sp-accent) !important;
+    background:     var(--sp-accent-soft) !important;
   }
 
   .sp-swatch-preview {
@@ -979,7 +996,7 @@ const STYLES = `
     font-weight:    500;
     letter-spacing: 0.05em;
     text-transform: uppercase;
-    color:          rgba(255,255,255,0.4);
+    color:          var(--sp-text-faint);
   }
 
   .sp-swatch-check {
@@ -988,7 +1005,7 @@ const STYLES = `
     right:          7px;
     width:          16px;
     height:         16px;
-    background:     rgba(168,148,255,0.8);
+    background:     var(--sp-accent);
     border-radius:  50%;
     display:        flex;
     align-items:    center;
@@ -999,8 +1016,8 @@ const STYLES = `
   /* ── Danger zone ──────────────────────────────────────────────── */
 
   .sp-danger-zone {
-    background:     rgba(248,113,113,0.04);
-    border:         1px solid rgba(248,113,113,0.12);
+    background:     var(--sp-surface-strong);
+    border:         1px solid rgba(248,113,113,0.16);
     border-radius:  12px;
     padding:        14px;
     display:        flex;
@@ -1014,7 +1031,7 @@ const STYLES = `
     font-weight:    500;
     letter-spacing: 0.09em;
     text-transform: uppercase;
-    color:          rgba(248,113,113,0.5);
+    color:          rgba(248,113,113,0.7);
     margin:         0 0 2px;
   }
 
@@ -1023,10 +1040,10 @@ const STYLES = `
     align-items:    center;
     gap:            8px;
     padding:        9px 12px;
-    background:     rgba(255,255,255,0.03);
-    border:         1px solid rgba(255,255,255,0.07);
+    background:     var(--sp-modal-bg);
+    border:         1px solid rgba(248,113,113,0.2);
     border-radius:  8px;
-    color:          rgba(255,255,255,0.55);
+    color:          var(--sp-text);
     font-family:    'DM Sans', sans-serif;
     font-size:      12px;
     cursor:         pointer;
@@ -1036,8 +1053,8 @@ const STYLES = `
   }
 
   .sp-danger-btn:hover {
-    background:     rgba(255,255,255,0.06);
-    color:          rgba(255,255,255,0.8);
+    background:     rgba(248,113,113,0.08);
+    color:          var(--sp-text);
   }
 
   .sp-danger-btn:disabled {
@@ -1046,13 +1063,14 @@ const STYLES = `
   }
 
   .sp-danger-btn-red {
-    color:          rgba(248,113,113,0.6) !important;
-    border-color:   rgba(248,113,113,0.15) !important;
+    color:          rgba(220,38,38,0.95) !important;
+    border-color:   rgba(220,38,38,0.28) !important;
+    font-weight:    600;
   }
 
   .sp-danger-btn-red:hover {
-    background:     rgba(248,113,113,0.08) !important;
-    color:          rgba(248,113,113,0.9) !important;
+    background:     rgba(248,113,113,0.14) !important;
+    color:          rgba(185,28,28,1) !important;
   }
 
   /* ── Action rows ──────────────────────────────────────────────── */
@@ -1089,10 +1107,10 @@ const STYLES = `
     align-items:    center;
     gap:            6px;
     padding:        7px 12px;
-    background:     rgba(255,255,255,0.05);
-    border:         1px solid rgba(255,255,255,0.08);
+    background:     var(--sp-surface-strong);
+    border:         1px solid var(--sp-border);
     border-radius:  8px;
-    color:          rgba(255,255,255,0.5);
+    color:          var(--sp-text-muted);
     font-family:    'DM Mono', monospace;
     font-size:      11px;
     font-weight:    500;
@@ -1102,8 +1120,8 @@ const STYLES = `
   }
 
   .sp-action-btn:hover {
-    background:     rgba(255,255,255,0.09);
-    color:          rgba(255,255,255,0.8);
+    background:     var(--sp-hover);
+    color:          var(--sp-text);
   }
 
   .sp-action-btn:disabled {
@@ -1153,10 +1171,10 @@ const STYLES = `
   .sp-cancel-btn {
     flex:           1;
     padding:        11px;
-    background:     rgba(255,255,255,0.04);
-    border:         1px solid rgba(255,255,255,0.08);
+    background:     var(--sp-surface-strong);
+    border:         1px solid var(--sp-border);
     border-radius:  9px;
-    color:          rgba(255,255,255,0.45);
+    color:          var(--sp-text-muted);
     font-family:    'DM Sans', sans-serif;
     font-size:      13px;
     cursor:         pointer;
@@ -1165,8 +1183,8 @@ const STYLES = `
   }
 
   .sp-cancel-btn:hover {
-    background:     rgba(255,255,255,0.07);
-    color:          rgba(255,255,255,0.7);
+    background:     var(--sp-hover);
+    color:          var(--sp-text);
   }
 
   .sp-save-btn {
@@ -1217,29 +1235,29 @@ const STYLES = `
     font-family:    'DM Sans', sans-serif;
     font-size:      12px;
     font-weight:    500;
-    color:          rgba(255,255,255,0.65);
+    color:          var(--sp-text-muted);
     letter-spacing: 0.01em;
   }
 
   .cp-input {
     padding:        10px 12px;
-    background:     rgba(255,255,255,0.04);
-    border:         1px solid rgba(255,255,255,0.08);
+    background:     var(--sp-input-bg);
+    border:         1px solid var(--sp-input-border);
     border-radius:  8px;
     font-family:    'DM Sans', sans-serif;
     font-size:      13px;
-    color:          rgba(255,255,255,0.85);
+    color:          var(--sp-input-text);
     transition:     border-color 0.15s, background 0.15s;
   }
 
   .cp-input::placeholder {
-    color:          rgba(255,255,255,0.2);
+    color:          var(--sp-input-placeholder);
   }
 
   .cp-input:focus {
     outline:        none;
-    background:     rgba(255,255,255,0.06);
-    border-color:   rgba(168,148,255,0.3);
+    background:     var(--sp-surface-strong);
+    border-color:   var(--sp-accent);
   }
 
   .cp-input:disabled {
@@ -1262,7 +1280,7 @@ const STYLES = `
   .cp-hint {
     font-family:    'DM Sans', sans-serif;
     font-size:      11px;
-    color:          rgba(255,255,255,0.25);
+    color:          var(--sp-text-soft);
     line-height:    1.5;
     margin:         8px 0 0;
   }
