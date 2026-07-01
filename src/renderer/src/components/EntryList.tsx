@@ -44,7 +44,21 @@ export default function EntryList({ selectedFolderId, folders, settingsVersion =
       } else {
         data = await window.api.getEntriesByFolder(selectedFolderId)
       }
-      setEntries(data)
+
+      const checkBreachesEnabled = (await window.api.getSetting('checkBreaches')) === 'true'
+      const enrichedEntries = checkBreachesEnabled
+        ? await Promise.all(data.map(async (entry) => {
+            try {
+              const breach = await window.api.checkPasswordBreach(entry.password)
+              return { ...entry, breachCount: breach.count > 0 ? breach.count : 0 }
+            } catch (error) {
+              console.error('[EntryList] breach check failed:', error)
+              return { ...entry, breachCount: 0 }
+            }
+          }))
+        : data.map((entry) => ({ ...entry, breachCount: 0 }))
+
+      setEntries(enrichedEntries)
     } catch (e) {
       console.error('[EntryList] load failed:', e)
     } finally {
@@ -295,6 +309,20 @@ export default function EntryList({ selectedFolderId, folders, settingsVersion =
                       {copiedId === entry.id ? <CheckIcon /> : <CopyIcon />}
                     </button>
 
+                    {(entry.breachCount ?? 0) > 0 && (
+                      <span className="el-breach-wrapper">
+                        <span
+                          className="el-breach-indicator"
+                          aria-label="Password breach detected"
+                        >
+                          <AlertTriangleIcon />
+                        </span>
+                        <span className="el-breach-tooltip" role="tooltip">
+                          This password appeared in {entry.breachCount?.toLocaleString()} known data breach{(entry.breachCount ?? 0) === 1 ? '' : 's'}.
+                        </span>
+                      </span>
+                    )}
+
                     {/* Delete */}
                     <button
                       className="el-icon-btn el-delete-btn"
@@ -475,6 +503,9 @@ function CopyIcon() {
 }
 function CheckIcon() {
   return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+}
+function AlertTriangleIcon() {
+  return <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
 }
 function TrashIcon() {
   return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
@@ -847,6 +878,56 @@ const STYLES = `
   .el-delete-btn:hover {
     background:     rgba(248,113,113,0.1) !important;
     color:          #f87171 !important;
+  }
+
+  .el-breach-wrapper {
+    position:       relative;
+    display:        inline-flex;
+    align-items:    center;
+    justify-content:center;
+  }
+
+  .el-breach-indicator {
+    display:        inline-flex;
+    align-items:    center;
+    justify-content:center;
+    width:          28px;
+    height:         28px;
+    border-radius:  7px;
+    color:          #f87171;
+    background:     rgba(248,113,113,0.1);
+    flex-shrink:    0;
+    cursor:         help;
+  }
+
+  .el-breach-indicator:hover {
+    background:     rgba(248,113,113,0.16);
+  }
+
+  .el-breach-tooltip {
+    position:       absolute;
+    right:          0;
+    bottom:         calc(100% + 8px);
+    padding:        8px 10px;
+    border-radius:  8px;
+    background:     rgba(17, 24, 39, 0.96);
+    color:          #fef2f2;
+    font-family:    'DM Sans', sans-serif;
+    font-size:      11px;
+    line-height:    1.4;
+    white-space:    nowrap;
+    box-shadow:     0 10px 24px rgba(0,0,0,0.28);
+    border:         1px solid rgba(248,113,113,0.2);
+    opacity:        0;
+    pointer-events: none;
+    transform:      translateY(4px);
+    transition:     opacity 0.15s ease, transform 0.15s ease;
+    z-index:        20;
+  }
+
+  .el-breach-wrapper:hover .el-breach-tooltip {
+    opacity:        1;
+    transform:      translateY(0);
   }
 
   /* ── Folder badge ─────────────────────────────────────────────── */

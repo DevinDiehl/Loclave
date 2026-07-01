@@ -39,6 +39,7 @@ export interface Api {
     toggleFavorite: (id: number) => Promise<{ success: boolean }>
     encryptPassword: (plaintext: string) => Promise<string>
     decryptPassword: (stored: string) => Promise<string>
+    checkPasswordBreach: (storedPassword: string) => Promise<{ count: number }>
     getSetting: (key: string) => Promise<string | undefined>
     saveSettings: (key: string, value: string | number | boolean) => Promise<void>
     saveClipboardTimeout: (value: number) => Promise<void>
@@ -173,6 +174,10 @@ contextBridge.exposeInMainWorld('api', {
 
     decryptPassword: async (stored: string): Promise<string> => {
         return await ipcRenderer.invoke('entries:decryptPassword', stored)
+    },
+
+    checkPasswordBreach: async (storedPassword: string): Promise<{ count: number }> => {
+        return await ipcRenderer.invoke('entries:checkPasswordBreach', storedPassword)
     },
 
     getSetting: async (key: string): Promise<string | undefined> => {

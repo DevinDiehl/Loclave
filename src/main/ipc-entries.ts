@@ -1,8 +1,45 @@
 import { ipcMain, clipboard } from 'electron'
+import { createHash } from 'crypto'
 import * as db from '../db/db'
 import { getSessionKey } from '../cryptography/session'
 import { encryptToString, decryptFromString } from '../cryptography/crypto'
 import https from 'https'
+async function checkPasswordBreach(password: string): Promise<{ count: number }> {
+    const hash = createHash('sha1').update(password).digest('hex').toUpperCase()
+    const prefix = hash.slice(0, 5)
+    const suffix = hash.slice(5)
+
+    const response = await new Promise<string>((resolve, reject) => {
+        const req = https.get(
+            `https://api.pwnedpasswords.com/range/${prefix}`,
+            {
+                timeout: 5000,
+                headers: {
+                    'User-Agent': 'Password-Keep/1.0'
+                }
+            },
+            (res) => {
+                let body = ''
+                res.setEncoding('utf8')
+                res.on('data', (chunk) => {
+                    body += chunk
+                })
+                res.on('end', () => resolve(body))
+            }
+        )
+
+        req.on('error', reject)
+        req.on('timeout', () => req.destroy(new Error('pwned-passwords-timeout')))
+    })
+
+    const match = response.split(/\r?\n/).find((line) => line.split(':')[0] === suffix)
+
+    if (!match) return { count: 0 }
+
+    const countValue = Number(match.split(':')[1] || '0')
+    return { count: Number.isFinite(countValue) ? countValue : 0 }
+}
+
 export function registerEntryHandlers(): void {
     let clipboardTimeout: NodeJS.Timeout | null = null
 
@@ -111,6 +148,18 @@ export function registerEntryHandlers(): void {
         const key = getSessionKey()
         if (!key) throw new Error('Session is locked')
         return decryptFromString(stored, key)
+    })
+
+    ipcMain.handle('entries:checkPasswordBreach', async (_event, stored: string) => {
+        try {
+            const key = getSessionKey()
+            if (!key) return { count: 0 }
+            const plaintext = decryptFromString(stored, key)
+            return await checkPasswordBreach(plaintext)
+        } catch (error) {
+            console.error('Failed to check password breach', error)
+            return { count: 0 }
+        }
     })
 
     ipcMain.handle('entries:copyWithTimeout', async (_event, password: string) => {

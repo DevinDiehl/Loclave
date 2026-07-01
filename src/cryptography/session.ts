@@ -103,9 +103,9 @@ export function lockSession(): void {
  * The user must re-enter their master password on next launch.
  */
 export async function logoutSession(): Promise<void> {
-    // sessionKey = null;
-    // clearLockTimer();
-    // await clearKeyFromKeychain();
+    sessionKey = null
+    clearLockTimer()
+    await clearKeyFromKeychain()
     onLockCallback?.()
 }
 

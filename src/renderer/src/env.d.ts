@@ -40,6 +40,7 @@ interface Window {
         toggleFavorite: (id: number) => Promise<{ success: boolean }>
         encryptPassword: (plaintext: string) => Promise<string>
         decryptPassword: (stored: string) => Promise<string>
+        checkPasswordBreach: (storedPassword: string) => Promise<{ count: number }>
         getSetting: (key: string) => Promise<string | undefined>
         saveSettings: (key: string, value: string | number | boolean) => Promise<void>
         saveClipboardTimeout: (value: number) => Promise<void>
