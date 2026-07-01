@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from 'react'
 import { Folder, SidebarProps } from '../../../types/types'
 import SettingsPanel from './Settings'
 
-
+const DEFAULT_FOLDER_COLOR = '#7c6dd8'
+const COLOR_SWATCHES = ['#7c6dd8', '#38bdf8', '#f59e0b', '#f97316', '#ef4444', '#10b981', '#f43f5e', '#8b5cf6']
 
 export default function Sidebar({
   selectedFolderId,
@@ -18,6 +19,7 @@ export default function Sidebar({
   const [creating,      setCreating]      = useState(false)
   const [ShowSettings,   setShowSettings]   = useState(false)
   const [newName,       setNewName]       = useState('')
+  const [newColor,      setNewColor]      = useState(DEFAULT_FOLDER_COLOR)
   const [hoveredId,     setHoveredId]     = useState<number | null | 'all'>('all')
   const [mounted,       setMounted]       = useState(false)
   const [error,         setError]         = useState('')
@@ -42,6 +44,7 @@ export default function Sidebar({
   function startCreating() {
     setCreating(true)
     setNewName('')
+    setNewColor(DEFAULT_FOLDER_COLOR)
     setError('')
     setTimeout(() => newFolderRef.current?.focus(), 50)
   }
@@ -58,7 +61,7 @@ export default function Sidebar({
     if (trimmed.length > 32) { setError('Max 32 characters.'); return }
 
     try {
-      await window.api.createFolder(trimmed)
+      await window.api.createFolder(trimmed, newColor)
       setCreating(false)
       setNewName('')
       await loadFolders()
@@ -75,6 +78,7 @@ export default function Sidebar({
   function cancelCreating() {
     setCreating(false)
     setNewName('')
+    setNewColor(DEFAULT_FOLDER_COLOR)
     setError('')
   }
 
@@ -175,6 +179,7 @@ export default function Sidebar({
               }}
               title={collapsed ? folder.name : undefined}
             >
+              <span className="folder-color-swatch" style={{ backgroundColor: folder.color || DEFAULT_FOLDER_COLOR }} />
               <span className="folder-icon"><FolderIcon /></span>
 
               {!collapsed && (
@@ -217,6 +222,24 @@ export default function Sidebar({
                 />
               </div>
               {error && <p className="new-folder-error">{error}</p>}
+              <div className="color-picker-group">
+                <div className="color-swatch-row">
+                  {COLOR_SWATCHES.map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      className={`color-swatch ${newColor === color ? 'active' : ''}`}
+                      style={{ backgroundColor: color }}
+                      onClick={() => setNewColor(color)}
+                      title={color}
+                    />
+                  ))}
+                </div>
+                <label className="color-picker-label">
+                  <span>Custom</span>
+                  <input type="color" value={newColor} onChange={(e) => setNewColor(e.target.value)} />
+                </label>
+              </div>
               <div className="new-folder-actions">
                 <button type="submit" className="new-folder-confirm">Add</button>
                 <button type="button" className="new-folder-cancel" onClick={cancelCreating}>Cancel</button>
@@ -425,6 +448,14 @@ const STYLES = `
     color:            #7c6dd8;
   }
 
+  .folder-color-swatch {
+    width:            10px;
+    height:           10px;
+    border-radius:    50%;
+    flex-shrink:      0;
+    box-shadow:       inset 0 0 0 1px rgba(255,255,255,0.24);
+  }
+
   .folder-icon {
     display:          flex;
     align-items:      center;
@@ -537,6 +568,60 @@ const STYLES = `
     color:            #f87171;
     padding:          4px 0 0 26px;
     letter-spacing:   0.02em;
+  }
+
+  .color-picker-group {
+    display:          flex;
+    align-items:      center;
+    gap:              8px;
+    padding:          8px 0 0 26px;
+    flex-wrap:        wrap;
+  }
+
+  .color-swatch-row {
+    display:          flex;
+    flex-wrap:        wrap;
+    gap:              6px;
+  }
+
+  .color-swatch {
+    width:            18px;
+    height:           18px;
+    border-radius:    50%;
+    border:           2px solid transparent;
+    padding:          0;
+    cursor:           pointer;
+    transition:       transform 0.15s ease, border-color 0.15s ease;
+  }
+
+  .color-swatch:hover {
+    transform:        scale(1.05);
+  }
+
+  .color-swatch.active {
+    border-color:     rgba(255,255,255,0.9);
+    box-shadow:       0 0 0 1px rgba(15,23,42,0.16);
+  }
+
+  .color-picker-label {
+    display:          flex;
+    align-items:      center;
+    gap:              6px;
+    font-family:      'DM Mono', monospace;
+    font-size:        10px;
+    letter-spacing:   0.06em;
+    text-transform:   uppercase;
+    color:            inherit;
+    opacity:          0.8;
+  }
+
+  .color-picker-label input[type="color"] {
+    width:            22px;
+    height:           22px;
+    padding:          0;
+    border:           none;
+    background:       transparent;
+    cursor:           pointer;
   }
 
   .new-folder-actions {

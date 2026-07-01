@@ -18,8 +18,8 @@ export function registerFolderHandlers(): void {
    * @returns     { id: number }
    * @throws      if name already exists
    */
-  ipcMain.handle('folders:create', async (_event, name: string) => {
-    const id = db.createFolder({ name })
+  ipcMain.handle('folders:create', async (_event, name: string, color = '#7c6dd8') => {
+    const id = db.createFolder({ name, color })
     return { id }
   })
 
@@ -29,8 +29,8 @@ export function registerFolderHandlers(): void {
    * @param name  New name
    * @returns     { success: boolean }
    */
-  ipcMain.handle('folders:update', async (_event, id: number, name: string) => {
-    const success = db.updateFolder({ id, name })
+  ipcMain.handle('folders:update', async (_event, id: number, name: string, color = '#7c6dd8') => {
+    const success = db.updateFolder({ id, name, color })
     return { success }
   })
 

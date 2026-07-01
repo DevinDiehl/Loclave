@@ -41,6 +41,7 @@ function createTables(): void {
       id         INTEGER PRIMARY KEY AUTOINCREMENT,
       name       TEXT    NOT NULL UNIQUE,
       icon       TEXT    DEFAULT 'folder',
+      color      TEXT    DEFAULT '#7c6dd8',
       created_at TEXT    DEFAULT (datetime('now')),
       updated_at TEXT    DEFAULT (datetime('now'))
     );
@@ -63,6 +64,15 @@ function createTables(): void {
       value TEXT NOT NULL
     );
   `);
+
+  ensureFolderColorColumn();
+}
+
+function ensureFolderColorColumn(): void {
+  const columns = getDb().prepare('PRAGMA table_info(folders)').all() as Array<{ name: string }>;
+  if (!columns.some((column) => column.name === 'color')) {
+    getDb().exec("ALTER TABLE folders ADD COLUMN color TEXT DEFAULT '#7c6dd8'");
+  }
 }
 
 const stmts: Record<string, Statement> = {};
@@ -71,6 +81,7 @@ interface RestoredFolder {
   id: number
   name: string
   icon?: string | null
+  color?: string | null
   created_at?: string | null
   updated_at?: string | null
 }
@@ -120,10 +131,10 @@ export function getFolderById(id: number): Folder | undefined {
  * @returns ID of the new folder
  * @throws if name already exists (UNIQUE constraint)
  */
-export function createFolder({ name, icon = 'folder' }: CreateFolderInput): number {
+export function createFolder({ name, icon = 'folder', color = '#7c6dd8' }: CreateFolderInput): number {
   const result = stmt('folders.insert', `
-    INSERT INTO folders (name, icon) VALUES (@name, @icon)
-  `).run({ name, icon });
+    INSERT INTO folders (name, icon, color) VALUES (@name, @icon, @color)
+  `).run({ name, icon, color });
 
   return result.lastInsertRowid as number;
 }
@@ -132,12 +143,12 @@ export function createFolder({ name, icon = 'folder' }: CreateFolderInput): numb
  * Updates a folder's name and/or icon.
  * @returns true if a row was updated
  */
-export function updateFolder({ id, name, icon = 'folder' }: UpdateFolderInput): boolean {
+export function updateFolder({ id, name, icon = 'folder', color = '#7c6dd8' }: UpdateFolderInput): boolean {
   const result = stmt('folders.update', `
     UPDATE folders
-    SET    name = @name, icon = @icon, updated_at = datetime('now')
+    SET    name = @name, icon = @icon, color = @color, updated_at = datetime('now')
     WHERE  id   = @id
-  `).run({ id, name, icon });
+  `).run({ id, name, icon, color });
 
   return result.changes > 0;
 }
@@ -339,8 +350,8 @@ export function replaceVaultData(snapshot: VaultRestoreSnapshot): void {
     database.prepare(`DELETE FROM settings`).run();
 
     const insertFolder = database.prepare(`
-      INSERT INTO folders (id, name, icon, created_at, updated_at)
-      VALUES (@id, @name, @icon, @created_at, @updated_at)
+      INSERT INTO folders (id, name, icon, color, created_at, updated_at)
+      VALUES (@id, @name, @icon, @color, @created_at, @updated_at)
     `);
     const insertEntry = database.prepare(`
       INSERT INTO entries (
@@ -359,6 +370,7 @@ export function replaceVaultData(snapshot: VaultRestoreSnapshot): void {
         id: folder.id,
         name: folder.name,
         icon: folder.icon ?? 'folder',
+        color: folder.color ?? '#7c6dd8',
         created_at: folder.created_at ?? new Date().toISOString(),
         updated_at: folder.updated_at ?? new Date().toISOString()
       });
