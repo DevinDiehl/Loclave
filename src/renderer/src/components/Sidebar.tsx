@@ -21,16 +21,27 @@ export default function Sidebar({
   const [newName,       setNewName]       = useState('')
   const [newColor,      setNewColor]      = useState(DEFAULT_FOLDER_COLOR)
   const [hoveredId,     setHoveredId]     = useState<number | null | 'all'>('all')
+  const [editingId,     setEditingId]     = useState<number | null>(null)
+  const [editName,      setEditName]      = useState('')
+  const [editColor,     setEditColor]     = useState(DEFAULT_FOLDER_COLOR)
   const [mounted,       setMounted]       = useState(false)
   const [error,         setError]         = useState('')
+  const [editError,     setEditError]     = useState('')
   const [deletingId,    setDeletingId]    = useState<number | null>(null)
   const newFolderRef                      = useRef<HTMLInputElement>(null)
+  const editFolderRef                     = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     loadFolders()
     const t = setTimeout(() => setMounted(true), 30)
     return () => clearTimeout(t)
   }, [])
+
+  useEffect(() => {
+    if (editingId !== null) {
+      setTimeout(() => editFolderRef.current?.focus(), 30)
+    }
+  }, [editingId])
 
   async function loadFolders() {
     try {
@@ -43,6 +54,7 @@ export default function Sidebar({
 
   function startCreating() {
     setCreating(true)
+    setEditingId(null)
     setNewName('')
     setNewColor(DEFAULT_FOLDER_COLOR)
     setError('')
@@ -80,6 +92,58 @@ export default function Sidebar({
     setNewName('')
     setNewColor(DEFAULT_FOLDER_COLOR)
     setError('')
+  }
+
+  function startEditing(folder: Folder, e?: React.MouseEvent) {
+    e?.stopPropagation()
+    setCreating(false)
+    setEditingId(folder.id)
+    setEditName(folder.name)
+    setEditColor(folder.color || DEFAULT_FOLDER_COLOR)
+    setEditError('')
+  }
+
+  async function submitEditFolder(e: React.FormEvent) {
+    e.preventDefault()
+    if (editingId === null) return
+
+    const trimmed = editName.trim()
+    if (!trimmed) {
+      setEditError('Name is required.')
+      return
+    }
+    if (trimmed.length > 32) {
+      setEditError('Max 32 characters.')
+      return
+    }
+
+    try {
+      const res = await window.api.updateFolder(editingId, trimmed, editColor)
+      if (!res.success) {
+        setEditError('Could not update folder.')
+        return
+      }
+
+      setEditingId(null)
+      setEditName('')
+      setEditColor(DEFAULT_FOLDER_COLOR)
+      setEditError('')
+      await loadFolders()
+      onFoldersChange?.()
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message?.includes('UNIQUE')) {
+        setEditError('A folder with that name already exists.')
+      } else {
+        setEditError('Could not update folder.')
+      }
+    }
+  }
+
+  function cancelEditing() {
+    setEditingId(null)
+    setEditName('')
+    setEditColor(DEFAULT_FOLDER_COLOR)
+    setEditError('')
   }
 
   async function deleteFolder(id: number, e: React.MouseEvent) {
@@ -188,14 +252,23 @@ export default function Sidebar({
                   <span className="folder-row-right">
                     <span className="entry-count">{folder.entry_count}</span>
                     {hoveredId === folder.id && (
-                      <button
-                        className="delete-btn"
-                        onClick={(e) => deleteFolder(folder.id, e)}
-                        title="Delete folder"
-                        disabled={deletingId === folder.id}
-                      >
-                        {deletingId === folder.id ? <SpinnerIcon /> : <TrashIcon />}
-                      </button>
+                      <>
+                        <button
+                          className="edit-btn"
+                          onClick={(e) => startEditing(folder, e)}
+                          title="Edit folder"
+                        >
+                          <EditIcon />
+                        </button>
+                        <button
+                          className="delete-btn"
+                          onClick={(e) => deleteFolder(folder.id, e)}
+                          title="Delete folder"
+                          disabled={deletingId === folder.id}
+                        >
+                          {deletingId === folder.id ? <SpinnerIcon /> : <TrashIcon />}
+                        </button>
+                      </>
                     )}
                   </span>
                 </>
@@ -243,6 +316,46 @@ export default function Sidebar({
               <div className="new-folder-actions">
                 <button type="submit" className="new-folder-confirm">Add</button>
                 <button type="button" className="new-folder-cancel" onClick={cancelCreating}>Cancel</button>
+              </div>
+            </form>
+          )}
+
+          {editingId !== null && !collapsed && (
+            <form className="new-folder-form" onSubmit={submitEditFolder}>
+              <div className="new-folder-input-row">
+                <span className="folder-icon"><FolderIcon /></span>
+                <input
+                  ref={editFolderRef}
+                  className="new-folder-input"
+                  value={editName}
+                  onChange={e => { setEditName(e.target.value); setEditError('') }}
+                  placeholder="Folder name"
+                  maxLength={32}
+                  onKeyDown={e => e.key === 'Escape' && cancelEditing()}
+                />
+              </div>
+              {editError && <p className="new-folder-error">{editError}</p>}
+              <div className="color-picker-group">
+                <div className="color-swatch-row">
+                  {COLOR_SWATCHES.map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      className={`color-swatch ${editColor === color ? 'active' : ''}`}
+                      style={{ backgroundColor: color }}
+                      onClick={() => setEditColor(color)}
+                      title={color}
+                    />
+                  ))}
+                </div>
+                <label className="color-picker-label">
+                  <span>Custom</span>
+                  <input type="color" value={editColor} onChange={(e) => setEditColor(e.target.value)} />
+                </label>
+              </div>
+              <div className="new-folder-actions">
+                <button type="submit" className="new-folder-confirm">Save</button>
+                <button type="button" className="new-folder-cancel" onClick={cancelEditing}>Cancel</button>
               </div>
             </form>
           )}
@@ -324,6 +437,15 @@ function TrashIcon() {
       <path d="M19 6l-1 14H6L5 6" />
       <path d="M10 11v6M14 11v6" />
       <path d="M9 6V4h6v2" />
+    </svg>
+  )
+}
+
+function EditIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
     </svg>
   )
 }
@@ -500,6 +622,24 @@ const STYLES = `
     height:           5px;
     border-radius:    50%;
     background:       rgba(168,148,255,0.8);
+  }
+
+  .edit-btn {
+    display:          flex;
+    align-items:      center;
+    justify-content:  center;
+    background:       none;
+    border:           none;
+    color:            rgba(124,109,216,0.6);
+    cursor:           pointer;
+    padding:          2px;
+    border-radius:    4px;
+    transition:       color 0.15s, background 0.15s;
+  }
+
+  .edit-btn:hover {
+    color:            #7c6dd8;
+    background:       rgba(124,109,216,0.12);
   }
 
   .delete-btn {
