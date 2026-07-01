@@ -2,6 +2,7 @@ export interface Folder {
     id: number
     name: string
     icon: string
+    color: string
     entry_count: number
 }
 
@@ -36,6 +37,7 @@ export interface UpdateEntryInput extends CreateEntryInput {
 export interface CreateFolderInput {
     name: string
     icon?: string
+    color?: string
 }
 
 export interface UpdateFolderInput extends CreateFolderInput {
