@@ -94,6 +94,11 @@ export default function SettingsPanel({ onClose, onSettingsSaved, theme: selecte
   const [importingVault, setImportingVault] = useState(false)
   const [importMessage, setImportMessage] = useState<string | null>(null)
   const [importError, setImportError] = useState<string | null>(null)
+  const [showBackupPasswordModal, setShowBackupPasswordModal] = useState(false)
+  const [backupPasswordAction, setBackupPasswordAction] = useState<'export' | 'import' | null>(null)
+  const [backupPassword, setBackupPassword] = useState('')
+  const [backupPasswordError, setBackupPasswordError] = useState<string | null>(null)
+  const [backupPasswordLoading, setBackupPasswordLoading] = useState(false)
 
   useEffect(() => {
     (async () => {
@@ -166,45 +171,68 @@ export default function SettingsPanel({ onClose, onSettingsSaved, theme: selecte
     }
   }
 
-  async function handleExportVault() {
-    setExportMessage(null)
-    setExportError(null)
-
-    try {
-      setExportingVault(true)
-      const result = await window.api.exportVault()
-
-      if (result.canceled) {
-        setExportMessage('Export cancelled.')
-        return
-      }
-
-      setExportMessage('Encrypted backup exported successfully.')
-    } catch (err) {
-      setExportError(err instanceof Error ? err.message : 'Failed to export vault')
-    } finally {
-      setExportingVault(false)
-    }
-  }
-
   async function handleImportVault() {
     setImportMessage(null)
     setImportError(null)
+    setBackupPassword('')
+    setBackupPasswordError(null)
+    setBackupPasswordAction('import')
+    setShowBackupPasswordModal(true)
+  }
+
+  async function handleExportVault() {
+    setExportMessage(null)
+    setExportError(null)
+    setBackupPassword('')
+    setBackupPasswordError(null)
+    setBackupPasswordAction('export')
+    setShowBackupPasswordModal(true)
+  }
+
+  async function executeBackupAction() {
+    if (!backupPassword) {
+      setBackupPasswordError('Please enter your master password')
+      return
+    }
+
+    setBackupPasswordError(null)
+    setBackupPasswordLoading(true)
+    if (backupPasswordAction === 'export') {
+      setExportingVault(true)
+    } else if (backupPasswordAction === 'import') {
+      setImportingVault(true)
+    }
 
     try {
-      setImportingVault(true)
-      const result = await window.api.importVault()
-
-      if (result.canceled) {
-        setImportMessage('Import cancelled.')
-        return
+      if (backupPasswordAction === 'export') {
+        const result = await window.api.exportVault(backupPassword)
+        if (result.canceled) {
+          setExportMessage('Export cancelled.')
+        } else {
+          setExportMessage('Encrypted backup exported successfully.')
+        }
+      } else if (backupPasswordAction === 'import') {
+        const result = await window.api.importVault(backupPassword)
+        if (result.canceled) {
+          setImportMessage('Import cancelled.')
+        } else {
+          setImportMessage(`Restored ${result.entryCount ?? 0} entries from backup.`)
+          setTimeout(() => window.location.reload(), 800)
+        }
       }
 
-      setImportMessage(`Restored ${result.entryCount ?? 0} entries from backup.`)
-      setTimeout(() => window.location.reload(), 800)
+      setShowBackupPasswordModal(false)
     } catch (err) {
-      setImportError(err instanceof Error ? err.message : 'Failed to import vault')
+      const message = err instanceof Error ? err.message : 'Failed to complete backup action'
+      if (backupPasswordAction === 'export') {
+        setExportError(message)
+      } else {
+        setImportError(message)
+      }
     } finally {
+      setBackupPasswordLoading(false)
+      setBackupPasswordAction(null)
+      setExportingVault(false)
       setImportingVault(false)
     }
   }
@@ -407,7 +435,7 @@ export default function SettingsPanel({ onClose, onSettingsSaved, theme: selecte
                   <button
                     className="sp-action-btn"
                     onClick={handleExportVault}
-                    disabled={exportingVault}
+                    disabled={exportingVault || backupPasswordLoading}
                   >
                     <ExportIcon /> {exportingVault ? 'Exporting...' : 'Export'}
                   </button>
@@ -422,7 +450,7 @@ export default function SettingsPanel({ onClose, onSettingsSaved, theme: selecte
                   <button
                     className="sp-action-btn"
                     onClick={handleImportVault}
-                    disabled={importingVault}
+                    disabled={importingVault || backupPasswordLoading}
                   >
                     <ImportIcon /> {importingVault ? 'Importing...' : 'Import'}
                   </button>
@@ -543,6 +571,91 @@ export default function SettingsPanel({ onClose, onSettingsSaved, theme: selecte
                 disabled={passwordChangeLoading}
               >
                 {passwordChangeLoading ? 'Changing...' : 'Change Password'}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {showBackupPasswordModal && (
+        <>
+          <div
+            className="sp-backdrop"
+            style={{ opacity: 1 }}
+            onClick={() => !backupPasswordLoading && setShowBackupPasswordModal(false)}
+          />
+          <div
+            className="sp-modal cp-modal"
+            style={{
+              opacity: 1,
+              transform: 'translate(-50%, -50%) translateY(0) scale(1)',
+              background: 'var(--sp-modal-bg)',
+              color: 'var(--sp-text)',
+            }}
+          >
+            <div className="sp-header">
+              <div className="sp-header-left">
+                <LockIcon />
+                <h2 className="sp-title">
+                  {backupPasswordAction === 'export' ? 'Export Vault Backup' : 'Import Vault Backup'}
+                </h2>
+              </div>
+              <button
+                className="sp-close"
+                onClick={() => !backupPasswordLoading && setShowBackupPasswordModal(false)}
+                disabled={backupPasswordLoading}
+                title="Close"
+              >
+                <XIcon />
+              </button>
+            </div>
+
+            <div className="sp-scroll cp-scroll">
+              <div className="cp-form">
+                <div className="cp-form-group">
+                  <label className="cp-label">Master Password</label>
+                  <input
+                    type="password"
+                    className="cp-input"
+                    value={backupPassword}
+                    onChange={(e) => setBackupPassword(e.target.value)}
+                    placeholder="Enter master password"
+                    disabled={backupPasswordLoading}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !backupPasswordLoading) {
+                        executeBackupAction()
+                      }
+                    }}
+                    autoFocus
+                  />
+                </div>
+
+                {backupPasswordError && (
+                  <div className="cp-error">
+                    {backupPasswordError}
+                  </div>
+                )}
+
+                <p className="cp-hint">
+                  This backup is encrypted using your master password and can only be restored with the same password.
+                </p>
+              </div>
+            </div>
+
+            <div className="sp-footer">
+              <button
+                className="sp-cancel-btn"
+                onClick={() => setShowBackupPasswordModal(false)}
+                disabled={backupPasswordLoading}
+              >
+                Cancel
+              </button>
+              <button
+                className="sp-save-btn"
+                onClick={executeBackupAction}
+                disabled={backupPasswordLoading || !backupPassword}
+              >
+                {backupPasswordLoading ? (backupPasswordAction === 'export' ? 'Exporting...' : 'Importing...') : (backupPasswordAction === 'export' ? 'Continue' : 'Continue')}
               </button>
             </div>
           </div>

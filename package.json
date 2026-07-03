@@ -39,6 +39,16 @@
             "identity": null,
             "type": "development"
         },
+        "win": {
+            "target": [
+                {
+                    "target": "nsis",
+                    "arch": [
+                        "x64"
+                    ]
+                }
+            ]
+        },
         "dmg": {
             "title": "${productName} ${version}",
             "window": {

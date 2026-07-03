@@ -56,8 +56,10 @@ export interface Api {
     saveMinimizeToTray: (value: boolean) => Promise<void>
     saveCheckBreaches: (value: boolean) => Promise<void>
     copyWithTimeout: (password: string) => Promise<void>
-    exportVault: () => Promise<{ success: boolean; canceled: boolean; filePath?: string }>
-    importVault: () => Promise<{
+    exportVault: (
+        masterPassword: string
+    ) => Promise<{ success: boolean; canceled: boolean; filePath?: string }>
+    importVault: (masterPassword: string) => Promise<{
         success: boolean
         canceled: boolean
         filePath?: string
@@ -241,18 +243,22 @@ contextBridge.exposeInMainWorld('api', {
         await ipcRenderer.invoke('entries:copyWithTimeout', password)
     },
 
-    exportVault: async (): Promise<{ success: boolean; canceled: boolean; filePath?: string }> => {
-        return await ipcRenderer.invoke('settings:exportVault')
+    exportVault: async (
+        masterPassword: string
+    ): Promise<{ success: boolean; canceled: boolean; filePath?: string }> => {
+        return await ipcRenderer.invoke('settings:exportVault', masterPassword)
     },
 
-    importVault: async (): Promise<{
+    importVault: async (
+        masterPassword: string
+    ): Promise<{
         success: boolean
         canceled: boolean
         filePath?: string
         entryCount?: number
         folderCount?: number
     }> => {
-        return await ipcRenderer.invoke('settings:importVault')
+        return await ipcRenderer.invoke('settings:importVault', masterPassword)
     },
 
     deleteAllData: async (): Promise<{ success: boolean; canceled: boolean }> => {

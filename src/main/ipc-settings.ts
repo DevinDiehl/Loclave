@@ -1,5 +1,6 @@
 import { ipcMain, app, BrowserWindow, dialog } from 'electron'
 import { readFile, writeFile } from 'fs/promises'
+import { randomBytes } from 'crypto'
 import * as db from '../db/db'
 import {
     hashMasterPassword,
@@ -61,10 +62,9 @@ export function registerSettingsHandlers(mainWindow: BrowserWindow): void {
         return { success: true }
     })
 
-    ipcMain.handle('settings:exportVault', async () => {
-        const key = getSessionKey()
-        if (!key) {
-            throw new Error('Session is locked')
+    ipcMain.handle('settings:exportVault', async (_event, masterPassword: string) => {
+        if (!masterPassword) {
+            throw new Error('Master password is required to export the vault')
         }
 
         const now = new Date()
@@ -93,7 +93,9 @@ export function registerSettingsHandlers(mainWindow: BrowserWindow): void {
             settings: db.getAllSettings()
         }
 
-        const encryptedPayload = encryptToString(JSON.stringify(snapshot), key)
+        const backupSalt = randomBytes(32).toString('hex')
+        const backupKey = deriveKey(masterPassword, backupSalt).key
+        const encryptedPayload = encryptToString(JSON.stringify(snapshot), backupKey)
         const backup = {
             format: 'password-keep.encrypted-vault-backup',
             version: 1,
@@ -102,7 +104,7 @@ export function registerSettingsHandlers(mainWindow: BrowserWindow): void {
                 algorithm: 'aes-256-gcm',
                 payloadEncoding: 'json',
                 keyDerivation: 'scrypt',
-                keySalt: db.getSetting('key_salt') ?? null
+                keySalt: backupSalt
             },
             payload: JSON.parse(encryptedPayload)
         }
@@ -111,10 +113,9 @@ export function registerSettingsHandlers(mainWindow: BrowserWindow): void {
         return { success: true, canceled: false, filePath: result.filePath }
     })
 
-    ipcMain.handle('settings:importVault', async () => {
-        const key = getSessionKey()
-        if (!key) {
-            throw new Error('Session is locked')
+    ipcMain.handle('settings:importVault', async (_event, masterPassword: string) => {
+        if (!masterPassword) {
+            throw new Error('Master password is required to import the vault')
         }
 
         const result = await dialog.showOpenDialog(mainWindow, {
@@ -133,7 +134,7 @@ export function registerSettingsHandlers(mainWindow: BrowserWindow): void {
 
         const filePath = result.filePaths[0]
         const fileContents = await readFile(filePath, 'utf8')
-        const snapshot = parseVaultBackup(fileContents, key)
+        const snapshot = parseVaultBackup(fileContents, masterPassword)
 
         const confirmed = await dialog.showMessageBox(mainWindow, {
             type: 'warning',
@@ -180,8 +181,7 @@ export function registerSettingsHandlers(mainWindow: BrowserWindow): void {
             cancelId: 1,
             title: 'Delete all vault data',
             message: 'Delete all vault data?',
-            detail:
-                'This permanently deletes every folder, entry, setting, and your master password setup. This action cannot be undone unless you have an encrypted backup.'
+            detail: 'This permanently deletes every folder, entry, setting, and your master password setup. This action cannot be undone unless you have an encrypted backup.'
         })
 
         if (confirmed.response !== 0) {
@@ -333,7 +333,7 @@ type VaultBackupSnapshot = {
     settings: VaultBackupSetting[]
 }
 
-function parseVaultBackup(fileContents: string, key: Buffer): VaultBackupSnapshot {
+function parseVaultBackup(fileContents: string, masterPassword: string): VaultBackupSnapshot {
     let backup: unknown
     try {
         backup = JSON.parse(fileContents)
@@ -345,15 +345,27 @@ function parseVaultBackup(fileContents: string, key: Buffer): VaultBackupSnapsho
         throw new Error('Backup file is not a Password Keep encrypted vault backup')
     }
 
+    if (!isRecord(backup.encryption)) {
+        throw new Error('Backup file is missing encryption metadata')
+    }
+
     if (!isEncryptedPayload(backup.payload)) {
         throw new Error('Backup file is missing encrypted vault data')
     }
 
+    const keySalt = typeof backup.encryption.keySalt === 'string' ? backup.encryption.keySalt : null
+    if (!keySalt) {
+        throw new Error(
+            'Backup file is missing key salt metadata required for password-based decryption'
+        )
+    }
+
+    const derivedKey = deriveKey(masterPassword, keySalt).key
     let plaintext: string
     try {
-        plaintext = decryptFromString(JSON.stringify(backup.payload), key)
+        plaintext = decryptFromString(JSON.stringify(backup.payload), derivedKey)
     } catch {
-        throw new Error('Could not decrypt backup with the current unlocked vault key')
+        throw new Error('Could not decrypt backup with the provided master password')
     }
 
     let snapshot: unknown

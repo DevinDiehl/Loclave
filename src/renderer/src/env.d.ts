@@ -58,8 +58,10 @@ interface Window {
         saveMinimizeToTray: (value: boolean) => Promise<void>
         saveCheckBreaches: (value: boolean) => Promise<void>
         copyWithTimeout: (password: string) => Promise<void>
-        exportVault: () => Promise<{ success: boolean; canceled: boolean; filePath?: string }>
-        importVault: () => Promise<{
+        exportVault: (
+            masterPassword: string
+        ) => Promise<{ success: boolean; canceled: boolean; filePath?: string }>
+        importVault: (masterPassword: string) => Promise<{
             success: boolean
             canceled: boolean
             filePath?: string
