@@ -12,8 +12,13 @@ interface Window {
         reportActivity: () => void
         onSessionLocked: (cb: () => void) => () => void
         getAllFolders: () => Promise<Folder[]>
-        createFolder: (name: string, color?: string) => Promise<{ id: number }>
-        updateFolder: (id: number, name: string, color?: string) => Promise<{ success: boolean }>
+        createFolder: (name: string, color?: string, sortOrder?: number) => Promise<{ id: number }>
+        updateFolder: (
+            id: number,
+            name: string,
+            color?: string,
+            sortOrder?: number
+        ) => Promise<{ success: boolean }>
         deleteFolder: (id: number) => Promise<{ success: boolean }>
         getAllEntries: () => Promise<Entry[]>
         getEntriesByFolder: (folderId: number) => Promise<Entry[]>
