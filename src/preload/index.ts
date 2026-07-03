@@ -9,8 +9,13 @@ export interface Api {
     isUnlocked: () => Promise<boolean>
     setLockTimeout: (ms: number) => Promise<void>
     getAllFolders: () => Promise<Folder[]>
-    createFolder: (name: string, color?: string) => Promise<{ id: number }>
-    updateFolder: (id: number, name: string, color?: string) => Promise<{ success: boolean }>
+    createFolder: (name: string, color?: string, sortOrder?: number) => Promise<{ id: number }>
+    updateFolder: (
+        id: number,
+        name: string,
+        color?: string,
+        sortOrder?: number
+    ) => Promise<{ success: boolean }>
     deleteFolder: (id: number) => Promise<{ success: boolean }>
     reportActivity: () => void
     onSessionLocked: (cb: () => void) => () => void
@@ -111,14 +116,25 @@ contextBridge.exposeInMainWorld('api', {
         return await ipcRenderer.invoke('folders:getAll')
     },
 
-    createFolder: async (name: string, color?: string) => {
-        const res = await ipcRenderer.invoke('folders:create', name, color ?? '#7c6dd8')
+    createFolder: async (name: string, color?: string, sortOrder?: number) => {
+        const res = await ipcRenderer.invoke(
+            'folders:create',
+            name,
+            color ?? '#7c6dd8',
+            sortOrder ?? 0
+        )
         if (res?.error) throw new Error(res.error)
         return res
     },
 
-    updateFolder: async (id: number, name: string, color?: string) => {
-        return await ipcRenderer.invoke('folders:update', id, name, color ?? '#7c6dd8')
+    updateFolder: async (id: number, name: string, color?: string, sortOrder?: number) => {
+        return await ipcRenderer.invoke(
+            'folders:update',
+            id,
+            name,
+            color ?? '#7c6dd8',
+            sortOrder ?? 0
+        )
     },
 
     deleteFolder: async (id: number) => {

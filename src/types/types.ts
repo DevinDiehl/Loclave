@@ -3,6 +3,7 @@ export interface Folder {
     name: string
     icon: string
     color: string
+    sort_order: number
     entry_count: number
 }
 
@@ -38,6 +39,7 @@ export interface CreateFolderInput {
     name: string
     icon?: string
     color?: string
+    sort_order?: number
 }
 
 export interface UpdateFolderInput extends CreateFolderInput {

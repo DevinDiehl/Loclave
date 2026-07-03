@@ -28,6 +28,7 @@ export default function Sidebar({
   const [error,         setError]         = useState('')
   const [editError,     setEditError]     = useState('')
   const [deletingId,    setDeletingId]    = useState<number | null>(null)
+  const [draggedFolderId, setDraggedFolderId] = useState<number | null>(null)
   const newFolderRef                      = useRef<HTMLInputElement>(null)
   const editFolderRef                     = useRef<HTMLInputElement>(null)
 
@@ -146,6 +147,30 @@ export default function Sidebar({
     setEditError('')
   }
 
+  async function reorderFolders(sourceId: number, targetId: number) {
+    if (sourceId === targetId) return
+
+    const sourceIndex = folders.findIndex((folder) => folder.id === sourceId)
+    const targetIndex = folders.findIndex((folder) => folder.id === targetId)
+    if (sourceIndex === -1 || targetIndex === -1) return
+
+    const nextFolders = [...folders]
+    const [movedFolder] = nextFolders.splice(sourceIndex, 1)
+    const insertIndex = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex
+    nextFolders.splice(insertIndex, 0, movedFolder)
+
+    setFolders(nextFolders)
+
+    try {
+      await Promise.all(nextFolders.map((folder, index) => window.api.updateFolder(folder.id, folder.name, folder.color || DEFAULT_FOLDER_COLOR, index)))
+      await loadFolders()
+      onFoldersChange?.()
+    } catch (error) {
+      console.error('[Sidebar] Failed to reorder folders:', error)
+      await loadFolders()
+    }
+  }
+
   async function deleteFolder(id: number, e: React.MouseEvent) {
     e.stopPropagation()
     setDeletingId(id)
@@ -232,16 +257,35 @@ export default function Sidebar({
           {folders.map((folder, i) => (
             <div
               key={folder.id}
-              className={`folder-row ${selectedFolderId === folder.id ? 'selected' : ''}`}
+              className={`folder-row ${selectedFolderId === folder.id ? 'selected' : ''} ${draggedFolderId === folder.id ? 'dragging' : ''}`}
               onClick={() => onSelectFolder(folder.id)}
               onMouseEnter={() => setHoveredId(folder.id)}
               onMouseLeave={() => setHoveredId(null)}
+              draggable={!collapsed}
+              onDragStart={(event) => {
+                event.dataTransfer.effectAllowed = 'move'
+                event.dataTransfer.setData('text/plain', String(folder.id))
+                setDraggedFolderId(folder.id)
+              }}
+              onDragOver={(event) => {
+                event.preventDefault()
+                event.dataTransfer.dropEffect = 'move'
+              }}
+              onDrop={(event) => {
+                event.preventDefault()
+                const sourceId = Number(event.dataTransfer.getData('text/plain')) || draggedFolderId
+                if (sourceId && sourceId !== folder.id) {
+                  void reorderFolders(sourceId, folder.id)
+                }
+                setDraggedFolderId(null)
+              }}
+              onDragEnd={() => setDraggedFolderId(null)}
               style={{
                 opacity:   mounted ? 1 : 0,
                 transform: mounted ? 'translateX(0)' : 'translateX(-6px)',
                 transition: `opacity 0.3s ease ${0.05 * i + 0.1}s, transform 0.3s ease ${0.05 * i + 0.1}s, background 0.15s`,
               }}
-              title={collapsed ? folder.name : undefined}
+              title={collapsed ? folder.name : `${folder.name} • drag to reorder`}
             >
               <span className="folder-color-swatch" style={{ backgroundColor: folder.color || DEFAULT_FOLDER_COLOR }} />
               <span className="folder-icon"><FolderIcon /></span>
@@ -558,6 +602,11 @@ const STYLES = `
   .folder-row:hover {
     background:       rgba(124,109,216,0.1);
     opacity:          1;
+  }
+
+  .folder-row.dragging {
+    opacity:          0.6;
+    transform:        scale(0.98);
   }
 
   .folder-row.selected {
