@@ -6,7 +6,15 @@ import { registerIpcHandlers } from './ipc'
 
 let mainWindow: BrowserWindow | null = null
 
+function getAppIconPath(): string {
+    return app.isPackaged
+        ? join(process.resourcesPath, 'icon.png')
+        : join(__dirname, '../../resources/icon.png')
+}
+
 function createWindow(): void {
+    const iconPath = getAppIconPath()
+
     mainWindow = new BrowserWindow({
         width: 900,
         height: 640,
@@ -15,6 +23,7 @@ function createWindow(): void {
         show: false,
         titleBarStyle: 'hiddenInset',
         backgroundColor: '#0d0d12',
+        icon: iconPath,
         webPreferences: {
             preload: join(__dirname, '../preload/index.js'),
             contextIsolation: true,
@@ -22,6 +31,8 @@ function createWindow(): void {
             sandbox: false
         }
     })
+
+    mainWindow.setIcon(iconPath)
 
     mainWindow.on('ready-to-show', () => mainWindow?.show())
 

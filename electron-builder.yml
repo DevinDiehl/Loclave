@@ -1,5 +1,6 @@
-appId: com.electron.app
-productName: electron-app
+appId: com.Lockstep.app
+productName: Lockstep
+icon: resources/icon
 directories:
   buildResources: build
 files:
@@ -12,7 +13,7 @@ files:
 asarUnpack:
   - resources/**
 win:
-  executableName: electron-app
+  executableName: Lockstep
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
