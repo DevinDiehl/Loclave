@@ -16,9 +16,10 @@ const IV_LENGTH = 16;
  * @returns           EncryptedPayload — serialize with encryptToString()
  * @throws            If sessionKey is null
  */
-export function encryptPassword(plaintext: string, sessionKey: Buffer): EncryptedPayload {
+export function encryptPassword(plaintext: string, sessionKey: Buffer, aad?: string): EncryptedPayload {
   const iv     = randomBytes(IV_LENGTH);
   const cipher = createCipheriv(ALGORITHM, sessionKey, iv);
+  if (aad) cipher.setAAD(Buffer.from(aad, 'utf8'));
 
   const ciphertext = Buffer.concat([
     cipher.update(plaintext, 'utf8'),
@@ -43,12 +44,13 @@ export function encryptPassword(plaintext: string, sessionKey: Buffer): Encrypte
  * @returns           The original plain-text password
  * @throws            If sessionKey is null, or if auth tag verification fails
  */
-export function decryptPassword(payload: EncryptedPayload, sessionKey: Buffer): string {
+export function decryptPassword(payload: EncryptedPayload, sessionKey: Buffer, aad?: string): string {
   const iv         = Buffer.from(payload.iv,         'hex');
   const authTag    = Buffer.from(payload.authTag,    'hex');
   const ciphertext = Buffer.from(payload.ciphertext, 'hex');
 
   const decipher = createDecipheriv(ALGORITHM, sessionKey, iv);
+  if (aad) decipher.setAAD(Buffer.from(aad, 'utf8'));
   decipher.setAuthTag(authTag);
 
   const plaintext = Buffer.concat([
@@ -68,8 +70,8 @@ export function decryptPassword(payload: EncryptedPayload, sessionKey: Buffer): 
  * @param sessionKey  Active session key buffer
  * @returns           JSON string — store this in the db
  */
-export function encryptToString(plaintext: string, sessionKey: Buffer): string {
-  return JSON.stringify(encryptPassword(plaintext, sessionKey));
+export function encryptToString(plaintext: string, sessionKey: Buffer, aad?: string): string {
+  return JSON.stringify(encryptPassword(plaintext, sessionKey, aad));
 }
 
 /**
@@ -79,6 +81,6 @@ export function encryptToString(plaintext: string, sessionKey: Buffer): string {
  * @param sessionKey  Active session key buffer
  * @returns           Original plain-text password
  */
-export function decryptFromString(stored: string, sessionKey: Buffer): string {
-  return decryptPassword(JSON.parse(stored) as EncryptedPayload, sessionKey);
+export function decryptFromString(stored: string, sessionKey: Buffer, aad?: string): string {
+  return decryptPassword(JSON.parse(stored) as EncryptedPayload, sessionKey, aad);
 }

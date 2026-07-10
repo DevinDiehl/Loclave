@@ -4,6 +4,7 @@ import * as db from '../db/db'
 import { getSessionKey } from '../cryptography/session'
 import { encryptToString, decryptFromString } from '../cryptography/crypto'
 import https from 'https'
+import { requireUnlocked } from './ipc-security'
 async function checkPasswordBreach(password: string): Promise<{ count: number }> {
     const hash = createHash('sha1').update(password).digest('hex').toUpperCase()
     const prefix = hash.slice(0, 5)
@@ -46,7 +47,8 @@ export function registerEntryHandlers(): void {
     /**
      * Returns all entries across all folders.
      */
-    ipcMain.handle('entries:getAll', async () => {
+    ipcMain.handle('entries:getAll', async (event) => {
+        requireUnlocked(event)
         return db.getEntriesByFolder === undefined
             ? []
             : (() => {
@@ -58,14 +60,16 @@ export function registerEntryHandlers(): void {
     /**
      * Returns all entries in a specific folder.
      */
-    ipcMain.handle('entries:getByFolder', async (_event, folderId: number) => {
+    ipcMain.handle('entries:getByFolder', async (event, folderId: number) => {
+        requireUnlocked(event)
         return db.getEntriesByFolder(folderId)
     })
 
     /**
      * Full-text search across title, username, url, notes.
      */
-    ipcMain.handle('entries:search', async (_event, query: string) => {
+    ipcMain.handle('entries:search', async (event, query: string) => {
+        requireUnlocked(event)
         return db.searchEntries(query)
     })
 
@@ -75,7 +79,7 @@ export function registerEntryHandlers(): void {
     ipcMain.handle(
         'entries:create',
         async (
-            _event,
+            event,
             input: {
                 folderId: number
                 title: string
@@ -85,7 +89,12 @@ export function registerEntryHandlers(): void {
                 notes: string | null
             }
         ) => {
-            const id = db.createEntry({ ...input, favorite: 0 })
+            requireUnlocked(event)
+            const key = getSessionKey()
+            if (!key) throw new Error('Session is locked')
+            const id = db.createEntry({ ...input, password: '', favorite: 0 })
+            const encryptedPassword = encryptToString(input.password, key, `entry:${id}`)
+            db.updateEntry({ ...input, id, password: encryptedPassword, favorite: 0 })
             return { id }
         }
     )
@@ -96,7 +105,7 @@ export function registerEntryHandlers(): void {
     ipcMain.handle(
         'entries:update',
         async (
-            _event,
+            event,
             input: {
                 id: number
                 folderId: number
@@ -108,7 +117,11 @@ export function registerEntryHandlers(): void {
                 favorite: 0 | 1
             }
         ) => {
-            const success = db.updateEntry(input)
+            requireUnlocked(event)
+            const key = getSessionKey()
+            if (!key) throw new Error('Session is locked')
+            const encryptedPassword = encryptToString(input.password, key, `entry:${input.id}`)
+            const success = db.updateEntry({ ...input, password: encryptedPassword })
             return { success }
         }
     )
@@ -116,7 +129,8 @@ export function registerEntryHandlers(): void {
     /**
      * Deletes an entry by ID.
      */
-    ipcMain.handle('entries:delete', async (_event, id: number) => {
+    ipcMain.handle('entries:delete', async (event, id: number) => {
+        requireUnlocked(event)
         const success = db.deleteEntry(id)
         return { success }
     })
@@ -124,7 +138,8 @@ export function registerEntryHandlers(): void {
     /**
      * Toggles the favorite flag on an entry.
      */
-    ipcMain.handle('entries:toggleFavorite', async (_event, id: number) => {
+    ipcMain.handle('entries:toggleFavorite', async (event, id: number) => {
+        requireUnlocked(event)
         const success = db.toggleFavorite(id)
         return { success }
     })
@@ -134,7 +149,8 @@ export function registerEntryHandlers(): void {
      * Called from the renderer before saving an entry.
      * Returns the JSON string to store in the db.
      */
-    ipcMain.handle('entries:encryptPassword', async (_event, plaintext: string) => {
+    ipcMain.handle('entries:encryptPassword', async (event, plaintext: string) => {
+        requireUnlocked(event)
         const key = getSessionKey()
         if (!key) throw new Error('Session is locked')
         return encryptToString(plaintext, key)
@@ -144,17 +160,20 @@ export function registerEntryHandlers(): void {
      * Decrypts a stored password JSON string using the current session key.
      * Called from the renderer when showing or copying a password.
      */
-    ipcMain.handle('entries:decryptPassword', async (_event, stored: string) => {
+    ipcMain.handle('entries:decryptPassword', async (event, stored: string, entryId: number) => {
+        requireUnlocked(event)
         const key = getSessionKey()
         if (!key) throw new Error('Session is locked')
-        return decryptFromString(stored, key)
+        try { return decryptFromString(stored, key, `entry:${entryId}`) } catch { return decryptFromString(stored, key) }
     })
 
-    ipcMain.handle('entries:checkPasswordBreach', async (_event, stored: string) => {
+    ipcMain.handle('entries:checkPasswordBreach', async (event, stored: string, entryId: number) => {
+        requireUnlocked(event)
         try {
             const key = getSessionKey()
             if (!key) return { count: 0 }
-            const plaintext = decryptFromString(stored, key)
+            let plaintext: string
+            try { plaintext = decryptFromString(stored, key, `entry:${entryId}`) } catch { plaintext = decryptFromString(stored, key) }
             return await checkPasswordBreach(plaintext)
         } catch (error) {
             console.error('Failed to check password breach', error)
@@ -162,7 +181,8 @@ export function registerEntryHandlers(): void {
         }
     })
 
-    ipcMain.handle('entries:copyWithTimeout', async (_event, password: string) => {
+    ipcMain.handle('entries:copyWithTimeout', async (event, password: string) => {
+        requireUnlocked(event)
         try {
             await clipboard.writeText(password)
             if (clipboardTimeout) {
@@ -188,7 +208,8 @@ export function registerEntryHandlers(): void {
      * Fetches a favicon for a domain and returns it as a data URI.
      * Uses DuckDuckGo's favicon service.
      */
-    ipcMain.handle('entries:fetchFavicon', async (_event, domain: string) => {
+    ipcMain.handle('entries:fetchFavicon', async (event, domain: string) => {
+        requireUnlocked(event)
         try {
             const faviconUrl = `https://icons.duckduckgo.com/ip3/${domain}.ico`
 

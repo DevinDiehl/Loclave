@@ -15,6 +15,7 @@ import {
 import {registerFolderHandlers} from './ipc-folders'
 import {registerEntryHandlers} from './ipc-entries'
 import {registerSettingsHandlers} from './ipc-settings'
+import { requireTrustedRenderer } from './ipc-security'
 /**
  * Call this once from main.ts after the BrowserWindow is created.
  * Registers all IPC handlers and wires up the lock callback.
@@ -32,10 +33,14 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
 
   // Load lock timeout preference from settings
   const savedTimeout = db.getSetting('lock_timeout_ms')
-  if (savedTimeout) setLockTimeout(Number(savedTimeout))
+  if (savedTimeout) {
+    try { setLockTimeout(Number(savedTimeout)) } catch { db.deleteSetting('lock_timeout_ms') }
+  }
 
   // Reset idle timer on any activity signal from renderer
-  ipcMain.on('user:activity', () => resetLockTimer())
+  ipcMain.on('user:activity', (event) => {
+    try { requireTrustedRenderer(event as never); resetLockTimer() } catch { /* ignore untrusted senders */ }
+  })
 
 
   /**
@@ -53,7 +58,10 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
    * then unlock the session.
    * @returns: { success: true }
    */
-  ipcMain.handle('session:setup', async (_event, masterPassword: string) => {
+  ipcMain.handle('session:setup', async (event, masterPassword: string) => {
+    requireTrustedRenderer(event)
+    if (db.getSetting('master_hash')) throw new Error('Master password is already configured')
+    if (typeof masterPassword !== 'string' || masterPassword.length < 1) throw new Error('Master password is required')
     // Hash the master password
     const masterHash = await hashMasterPassword(masterPassword)
     db.setSetting('master_hash', masterHash)
@@ -114,18 +122,26 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
    * Update the idle lock timeout.
    * @param ms  Milliseconds (e.g. 5 * 60 * 1000 for 5 minutes)
    */
-  ipcMain.handle('session:setLockTimeout', async (_event, ms: number) => {
+  ipcMain.handle('session:setLockTimeout', async (event, ms: number) => {
+    requireTrustedRenderer(event)
+    if (!Number.isSafeInteger(ms) || ms < 60_000 || ms > 86_400_000) throw new Error('Invalid lock timeout')
     setLockTimeout(ms)
     db.setSetting('lock_timeout_ms', String(ms))
     return { success: true }
   })
 
-  ipcMain.handle('db:getSetting', async (_event, key: string) => {
+  ipcMain.handle('db:getSetting', async (event, key: string) => {
+    requireTrustedRenderer(event)
+    const allowed = new Set(['theme','compactMode','showFavicons','startOnLogin','minimizeToTray','checkBreaches','clipboardTimeout','requirePasswordOnCopy','lock_timeout_ms'])
+    if (!allowed.has(key)) throw new Error('Unknown setting')
     const value = db.getSetting(key)
     return { value }
   })
 
-  ipcMain.handle('db:saveSetting', async (_event, key: string, value: string | number | boolean) => {
+  ipcMain.handle('db:saveSetting', async (event, key: string, value: string | number | boolean) => {
+    requireTrustedRenderer(event)
+    const allowed = new Set(['theme','compactMode','showFavicons','startOnLogin','minimizeToTray','checkBreaches','clipboardTimeout','requirePasswordOnCopy'])
+    if (!allowed.has(key)) throw new Error('Setting is not writable')
     db.setSetting(key, String(value))
     return { success: true }
   })

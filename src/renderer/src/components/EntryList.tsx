@@ -49,7 +49,7 @@ export default function EntryList({ selectedFolderId, folders, settingsVersion =
       const enrichedEntries = checkBreachesEnabled
         ? await Promise.all(data.map(async (entry) => {
             try {
-              const breach = await window.api.checkPasswordBreach(entry.password)
+              const breach = await window.api.checkPasswordBreach(entry.password, entry.id)
               return { ...entry, breachCount: breach.count > 0 ? breach.count : 0 }
             } catch (error) {
               console.error('[EntryList] breach check failed:', error)
@@ -100,7 +100,7 @@ export default function EntryList({ selectedFolderId, folders, settingsVersion =
     
     // If not required, copy directly
     try {
-      const plain = await window.api.decryptPassword(entry.password)
+      const plain = await window.api.decryptPassword(entry.password, entry.id)
       setCopiedId(entry.id)
       setTimeout(() => setCopiedId(null), 2000)
       await window.api.copyWithTimeout(plain)
@@ -125,7 +125,7 @@ export default function EntryList({ selectedFolderId, folders, settingsVersion =
       }
       
       // Password verified, copy the entry password
-      const plain = await window.api.decryptPassword(pendingEntry.password)
+      const plain = await window.api.decryptPassword(pendingEntry.password, pendingEntry.id)
       setCopiedId(pendingEntry.id)
       setTimeout(() => setCopiedId(null), 2000)
       await window.api.copyWithTimeout(plain)
