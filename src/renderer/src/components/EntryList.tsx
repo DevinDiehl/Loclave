@@ -1,6 +1,6 @@
 
 
-import { useState, useEffect, useCallback, type Dispatch, type SetStateAction } from 'react'
+import { useState, useEffect, useCallback, useRef, type Dispatch, type SetStateAction } from 'react'
 import type { Entry, EntryListProps } from '../../../types/types'
 import EntryForm from './EntryForm'
 
@@ -15,6 +15,7 @@ export default function EntryList({ selectedFolderId, folders, settingsVersion =
   const [copiedId,     setCopiedId]     = useState<number | null>(null)
   const [deletingId,   setDeletingId]   = useState<number | null>(null)
   const [mounted,      setMounted]      = useState(false)
+  const searchRef = useRef<HTMLInputElement>(null)
   
   // Password verification modal
   const [showVerifyModal, setShowVerifyModal] = useState(false)
@@ -82,6 +83,46 @@ export default function EntryList({ selectedFolderId, folders, settingsVersion =
     const t = setTimeout(() => setMounted(true), 30)
     return () => clearTimeout(t)
   }, [])
+
+  useEffect(() => {
+    function handleKeyboardShortcut(event: KeyboardEvent): void {
+      const commandKey = event.ctrlKey || event.metaKey
+      const key = event.key.toLowerCase()
+
+      if (commandKey && key === 'n') {
+        event.preventDefault()
+        if (showForm || showVerifyModal) return
+        setEditingEntry(null)
+        setShowForm(true)
+        return
+      }
+
+      if (commandKey && key === 'f') {
+        event.preventDefault()
+        if (showForm || showVerifyModal) return
+        searchRef.current?.focus()
+        searchRef.current?.select()
+        return
+      }
+
+      if (event.key === 'Escape') {
+        if (showVerifyModal && !verifyLoading) {
+          setShowVerifyModal(false)
+          setVerifyPassword('')
+          setVerifyError(null)
+        } else if (showForm) {
+          setShowForm(false)
+          setEditingEntry(null)
+        } else if (search) {
+          setSearch('')
+          searchRef.current?.blur()
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyboardShortcut)
+    return () => window.removeEventListener('keydown', handleKeyboardShortcut)
+  }, [search, showForm, showVerifyModal, verifyLoading])
 
   // ── Actions ─────────────────────────────────────────────────────────────────
   
@@ -217,6 +258,7 @@ export default function EntryList({ selectedFolderId, folders, settingsVersion =
             <div className="el-search-wrap">
               <span className="el-search-icon"><SearchIcon /></span>
               <input
+                ref={searchRef}
                 className="el-search"
                 type="text"
                 placeholder="Search entries…"
