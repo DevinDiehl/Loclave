@@ -14,55 +14,66 @@ import {
 } from '../cryptography/session'
 import { clearKeyFromKeychain } from '../cryptography/keychain'
 import { decryptFromString, encryptToString } from '../cryptography/crypto'
+import { requireUnlocked } from './ipc-security'
 
 export function registerSettingsHandlers(mainWindow: BrowserWindow): void {
     const saveValue = (key: string, value: string | number | boolean): void => {
         db.setSetting(key, value)
     }
 
-    ipcMain.handle('settings:setClipboardTimeout', async (_event, value: number) => {
+    ipcMain.handle('settings:setClipboardTimeout', async (event, value: number) => {
+        requireUnlocked(event)
+        if (!Number.isSafeInteger(value) || value < 1_000 || value > 300_000) throw new Error('Invalid clipboard timeout')
         saveValue('clipboardTimeout', value)
         return { success: true }
     })
 
-    ipcMain.handle('settings:setRequirePasswordOnCopy', async (_event, value: boolean) => {
+    ipcMain.handle('settings:setRequirePasswordOnCopy', async (event, value: boolean) => {
+        requireUnlocked(event)
         saveValue('requirePasswordOnCopy', value)
         return { success: true }
     })
 
-    ipcMain.handle('settings:setTheme', async (_event, value: string) => {
+    ipcMain.handle('settings:setTheme', async (event, value: string) => {
+        requireUnlocked(event)
         saveValue('theme', value)
         return { success: true }
     })
 
-    ipcMain.handle('settings:setCompactMode', async (_event, value: boolean) => {
+    ipcMain.handle('settings:setCompactMode', async (event, value: boolean) => {
+        requireUnlocked(event)
         saveValue('compactMode', value)
         return { success: true }
     })
 
-    ipcMain.handle('settings:setShowFavicons', async (_event, value: boolean) => {
+    ipcMain.handle('settings:setShowFavicons', async (event, value: boolean) => {
+        requireUnlocked(event)
         saveValue('showFavicons', value)
         return { success: true }
     })
 
-    ipcMain.handle('settings:setStartOnLogin', async (_event, value: boolean) => {
+    ipcMain.handle('settings:setStartOnLogin', async (event, value: boolean) => {
+        requireUnlocked(event)
         saveValue('startOnLogin', value)
         app.setLoginItemSettings({ openAtLogin: value })
         return { success: true }
     })
 
-    ipcMain.handle('settings:setMinimizeToTray', async (_event, value: boolean) => {
+    ipcMain.handle('settings:setMinimizeToTray', async (event, value: boolean) => {
+        requireUnlocked(event)
         saveValue('minimizeToTray', value)
         app.setLoginItemSettings({ openAsHidden: value })
         return { success: true }
     })
 
-    ipcMain.handle('settings:setCheckBreaches', async (_event, value: boolean) => {
+    ipcMain.handle('settings:setCheckBreaches', async (event, value: boolean) => {
+        requireUnlocked(event)
         saveValue('checkBreaches', value)
         return { success: true }
     })
 
-    ipcMain.handle('settings:exportVault', async (_event, masterPassword: string) => {
+    ipcMain.handle('settings:exportVault', async (event, masterPassword: string) => {
+        requireUnlocked(event)
         if (!masterPassword) {
             throw new Error('Master password is required to export the vault')
         }
@@ -113,7 +124,8 @@ export function registerSettingsHandlers(mainWindow: BrowserWindow): void {
         return { success: true, canceled: false, filePath: result.filePath }
     })
 
-    ipcMain.handle('settings:importVault', async (_event, masterPassword: string) => {
+    ipcMain.handle('settings:importVault', async (event, masterPassword: string) => {
+        requireUnlocked(event)
         if (!masterPassword) {
             throw new Error('Master password is required to import the vault')
         }
@@ -161,7 +173,7 @@ export function registerSettingsHandlers(mainWindow: BrowserWindow): void {
 
         const savedTimeout = db.getSetting('lock_timeout_ms')
         if (savedTimeout) {
-            setLockTimeout(Number(savedTimeout))
+            try { setLockTimeout(Number(savedTimeout)) } catch { db.deleteSetting('lock_timeout_ms') }
         }
 
         return {
@@ -173,7 +185,8 @@ export function registerSettingsHandlers(mainWindow: BrowserWindow): void {
         }
     })
 
-    ipcMain.handle('settings:deleteAllData', async () => {
+    ipcMain.handle('settings:deleteAllData', async (event) => {
+        requireUnlocked(event)
         const confirmed = await dialog.showMessageBox(mainWindow, {
             type: 'warning',
             buttons: ['Delete Everything', 'Cancel'],
@@ -213,7 +226,8 @@ export function registerSettingsHandlers(mainWindow: BrowserWindow): void {
      */
     ipcMain.handle(
         'settings:changeMasterPassword',
-        async (_event, currentPassword: string, newPassword: string) => {
+        async (event, currentPassword: string, newPassword: string) => {
+            requireUnlocked(event)
             // Verify current password
             const storedHash = db.getSetting('master_hash')
             if (!storedHash) {
@@ -241,26 +255,18 @@ export function registerSettingsHandlers(mainWindow: BrowserWindow): void {
             const folders = db.getAllFolders()
             const allEntries = folders.flatMap((f) => db.getEntriesByFolder(f.id))
 
-            // Re-encrypt all entries with the new session key
+            const reencrypted: Array<{ id: number; password: string }> = []
             for (const entry of allEntries) {
                 try {
                     // Decrypt with old session key
-                    const plainPassword = decryptFromString(entry.password, oldSessionKey)
+                    let plainPassword: string
+                    try { plainPassword = decryptFromString(entry.password, oldSessionKey, `entry:${entry.id}`) }
+                    catch { plainPassword = decryptFromString(entry.password, oldSessionKey) }
 
                     // Re-encrypt with new session key
-                    const newEncryptedPassword = encryptToString(plainPassword, newSessionKey)
+                    const newEncryptedPassword = encryptToString(plainPassword, newSessionKey, `entry:${entry.id}`)
 
-                    // Update entry in database
-                    db.updateEntry({
-                        id: entry.id,
-                        folderId: entry.folder_id,
-                        title: entry.title,
-                        username: entry.username || '',
-                        password: newEncryptedPassword,
-                        url: entry.url || null,
-                        notes: entry.notes || null,
-                        favorite: entry.favorite
-                    })
+                    reencrypted.push({ id: entry.id, password: newEncryptedPassword })
                 } catch (err) {
                     console.error(`[settings] Failed to re-encrypt entry ${entry.id}:`, err)
                     throw new Error(
@@ -269,9 +275,7 @@ export function registerSettingsHandlers(mainWindow: BrowserWindow): void {
                 }
             }
 
-            // Update the master password hash and key salt in settings
-            db.setSetting('master_hash', newMasterHash)
-            db.setSetting('key_salt', newSaltHex)
+            db.rotateEncryptedEntries(reencrypted, newMasterHash, newSaltHex)
 
             // Lock the current session to clear the old key
             lockSession()
@@ -290,7 +294,8 @@ export function registerSettingsHandlers(mainWindow: BrowserWindow): void {
      * Verifies the master password without changing anything.
      * Used for operations that require password confirmation (e.g., copy with password).
      */
-    ipcMain.handle('settings:verifyMasterPassword', async (_event, password: string) => {
+    ipcMain.handle('settings:verifyMasterPassword', async (event, password: string) => {
+        requireUnlocked(event)
         const storedHash = db.getSetting('master_hash')
         if (!storedHash) {
             return { success: false }

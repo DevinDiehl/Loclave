@@ -7,11 +7,13 @@ type LockCallback = () => void
 const KEY_LENGTH = 32
 const SALT_LENGTH = 32
 const DEFAULT_TIMEOUT_MS = 300000
+const MAX_SESSION_MS = 8 * 60 * 60 * 1000
 
 let sessionKey: Buffer | null = null
 let lockTimer: ReturnType<typeof setTimeout> | null = null
 let lockTimeoutMs: number = DEFAULT_TIMEOUT_MS
 let onLockCallback: LockCallback | null = null
+let sessionStartedAt = 0
 
 /**
  * Hashes the master password with argon2id.
@@ -80,6 +82,7 @@ export function deriveKey(
  */
 export async function unlockSession(key: Buffer): Promise<void> {
     sessionKey = key
+    sessionStartedAt = Date.now()
     await saveKeyToKeychain(key)
     resetLockTimer()
 }
@@ -94,6 +97,7 @@ export async function unlockSession(key: Buffer): Promise<void> {
  */
 export function lockSession(): void {
     sessionKey = null
+    sessionStartedAt = 0
     clearLockTimer()
     onLockCallback?.()
 }
@@ -104,6 +108,7 @@ export function lockSession(): void {
  */
 export async function logoutSession(): Promise<void> {
     sessionKey = null
+    sessionStartedAt = 0
     clearLockTimer()
     await clearKeyFromKeychain()
     onLockCallback?.()
@@ -139,6 +144,9 @@ export function onLock(cb: LockCallback): void {
  * @param ms  Milliseconds before auto-lock
  */
 export function setLockTimeout(ms: number): void {
+    if (!Number.isSafeInteger(ms) || ms < 60_000 || ms > 86_400_000) {
+        throw new Error('Invalid lock timeout')
+    }
     lockTimeoutMs = ms
 }
 
@@ -147,10 +155,15 @@ export function setLockTimeout(ms: number): void {
  */
 export function resetLockTimer(): void {
     clearLockTimer()
+    const remainingSessionMs = sessionStartedAt > 0 ? MAX_SESSION_MS - (Date.now() - sessionStartedAt) : MAX_SESSION_MS
+    if (remainingSessionMs <= 0) {
+        lockSession()
+        return
+    }
     lockTimer = setTimeout(() => {
         console.log('[session] Idle timeout — locking session.')
         lockSession()
-    }, lockTimeoutMs)
+    }, Math.min(lockTimeoutMs, remainingSessionMs))
 }
 
 function clearLockTimer(): void {

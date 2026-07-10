@@ -497,6 +497,20 @@ export function setSetting(key: string, value: string | number | boolean): void 
         .run(key, String(value))
 }
 
+export function rotateEncryptedEntries(
+    updates: Array<{ id: number; password: string }>,
+    masterHash: string,
+    keySalt: string
+): void {
+    const database = getDb()
+    database.transaction(() => {
+        const update = database.prepare('UPDATE entries SET password = ?, updated_at = datetime(\'now\') WHERE id = ?')
+        for (const item of updates) update.run(item.password, item.id)
+        database.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('master_hash', masterHash)
+        database.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('key_salt', keySalt)
+    })()
+}
+
 /**
  * @deletes a setting by key.
  */

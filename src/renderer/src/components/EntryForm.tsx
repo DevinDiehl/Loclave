@@ -39,7 +39,7 @@ export default function EntryForm({
     if (!entry) return
     async function loadPassword() {
       try {
-        const plain = await window.api.decryptPassword(entry!.password)
+        const plain = await window.api.decryptPassword(entry!.password, entry!.id)
         setPassword(plain)
       } catch {
         setPassword('')
@@ -72,15 +72,13 @@ export default function EntryForm({
     setSaving(true)
 
     try {
-      const encryptedPassword = await window.api.encryptPassword(password)
-
       if (isEditing && entry) {
         await window.api.updateEntry({
           id:       entry.id,
           folderId: folderId!,
           title:    title.trim(),
           username: username.trim(),
-          password: encryptedPassword,
+          password,
           url:      url.trim() || null,
           notes:    notes.trim() || null,
           favorite: entry.favorite,
@@ -90,7 +88,7 @@ export default function EntryForm({
           folderId: folderId!,
           title:    title.trim(),
           username: username.trim(),
-          password: encryptedPassword,
+          password,
           url:      url.trim() || null,
           notes:    notes.trim() || null,
         })

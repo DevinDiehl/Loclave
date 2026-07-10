@@ -37,7 +37,13 @@ function createWindow(): void {
     mainWindow.on('ready-to-show', () => mainWindow?.show())
 
     mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-        shell.openExternal(url)
+        try {
+            const parsed = new URL(url)
+            if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return { action: 'deny' }
+            void shell.openExternal(parsed.toString())
+        } catch {
+            return { action: 'deny' }
+        }
         return { action: 'deny' }
     })
 

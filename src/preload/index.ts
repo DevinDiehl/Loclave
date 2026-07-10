@@ -43,8 +43,8 @@ export interface Api {
     deleteEntry: (id: number) => Promise<{ success: boolean }>
     toggleFavorite: (id: number) => Promise<{ success: boolean }>
     encryptPassword: (plaintext: string) => Promise<string>
-    decryptPassword: (stored: string) => Promise<string>
-    checkPasswordBreach: (storedPassword: string) => Promise<{ count: number }>
+    decryptPassword: (stored: string, entryId: number) => Promise<string>
+    checkPasswordBreach: (storedPassword: string, entryId: number) => Promise<{ count: number }>
     getSetting: (key: string) => Promise<string | undefined>
     saveSettings: (key: string, value: string | number | boolean) => Promise<void>
     saveClipboardTimeout: (value: number) => Promise<void>
@@ -190,12 +190,12 @@ contextBridge.exposeInMainWorld('api', {
         return await ipcRenderer.invoke('entries:encryptPassword', plaintext)
     },
 
-    decryptPassword: async (stored: string): Promise<string> => {
-        return await ipcRenderer.invoke('entries:decryptPassword', stored)
+    decryptPassword: async (stored: string, entryId: number): Promise<string> => {
+        return await ipcRenderer.invoke('entries:decryptPassword', stored, entryId)
     },
 
-    checkPasswordBreach: async (storedPassword: string): Promise<{ count: number }> => {
-        return await ipcRenderer.invoke('entries:checkPasswordBreach', storedPassword)
+    checkPasswordBreach: async (storedPassword: string, entryId: number): Promise<{ count: number }> => {
+        return await ipcRenderer.invoke('entries:checkPasswordBreach', storedPassword, entryId)
     },
 
     getSetting: async (key: string): Promise<string | undefined> => {

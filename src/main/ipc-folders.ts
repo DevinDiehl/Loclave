@@ -1,11 +1,13 @@
 import { ipcMain } from 'electron'
 import * as db from '../db/db'
+import { requireUnlocked } from './ipc-security'
 
 export function registerFolderHandlers(): void {
     /**
      * Returns all folders with entry counts.
      */
-    ipcMain.handle('folders:getAll', async () => {
+    ipcMain.handle('folders:getAll', async (event) => {
+        requireUnlocked(event)
         return db.getAllFolders()
     })
 
@@ -17,7 +19,8 @@ export function registerFolderHandlers(): void {
      */
     ipcMain.handle(
         'folders:create',
-        async (_event, name: string, color = '#7c6dd8', sortOrder = 0) => {
+        async (event, name: string, color = '#7c6dd8', sortOrder = 0) => {
+            requireUnlocked(event)
             const id = db.createFolder({ name, color, sort_order: sortOrder })
             return { id }
         }
@@ -31,7 +34,8 @@ export function registerFolderHandlers(): void {
      */
     ipcMain.handle(
         'folders:update',
-        async (_event, id: number, name: string, color = '#7c6dd8', sortOrder = 0) => {
+        async (event, id: number, name: string, color = '#7c6dd8', sortOrder = 0) => {
+            requireUnlocked(event)
             const success = db.updateFolder({ id, name, color, sort_order: sortOrder })
             return { success }
         }
@@ -42,7 +46,8 @@ export function registerFolderHandlers(): void {
      * @param id  Folder ID
      * @returns   { success: boolean }
      */
-    ipcMain.handle('folders:delete', async (_event, id: number) => {
+    ipcMain.handle('folders:delete', async (event, id: number) => {
+        requireUnlocked(event)
         const success = db.deleteFolder(id)
         return { success }
     })
