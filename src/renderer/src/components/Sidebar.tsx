@@ -300,8 +300,7 @@ export default function Sidebar({
               }}
               title={collapsed ? folder.name : `${folder.name} • drag to reorder`}
             >
-              <span className="folder-color-swatch" style={{ backgroundColor: folder.color || DEFAULT_FOLDER_COLOR }} />
-              <span className="folder-icon"><FolderIcon /></span>
+              <span className="folder-icon" style={{ color: folder.color || DEFAULT_FOLDER_COLOR }}><FolderIcon /></span>
 
               {!collapsed && (
                 <>
@@ -348,7 +347,7 @@ export default function Sidebar({
           {creating && !collapsed && (
             <form className="new-folder-form" onSubmit={submitNewFolder}>
               <div className="new-folder-input-row">
-                <span className="folder-icon"><FolderIcon /></span>
+                <span className="folder-icon" style={{ color: newColor }}><FolderIcon /></span>
                 <input
                   ref={newFolderRef}
                   className="new-folder-input"
@@ -388,7 +387,7 @@ export default function Sidebar({
           {editingId !== null && !collapsed && (
             <form className="new-folder-form" onSubmit={submitEditFolder}>
               <div className="new-folder-input-row">
-                <span className="folder-icon"><FolderIcon /></span>
+                <span className="folder-icon" style={{ color: editColor }}><FolderIcon /></span>
                 <input
                   ref={editFolderRef}
                   className="new-folder-input"
@@ -648,14 +647,6 @@ const STYLES = `
 
   .folder-row.selected .entry-count {
     color:            #7c6dd8;
-  }
-
-  .folder-color-swatch {
-    width:            10px;
-    height:           10px;
-    border-radius:    50%;
-    flex-shrink:      0;
-    box-shadow:       inset 0 0 0 1px rgba(255,255,255,0.24);
   }
 
   .folder-icon {
