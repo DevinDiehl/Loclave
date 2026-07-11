@@ -1,4 +1,4 @@
-import { ipcMain, clipboard } from 'electron'
+import { ipcMain, clipboard, shell } from 'electron'
 import { createHash } from 'crypto'
 import * as db from '../db/db'
 import { getSessionKey } from '../cryptography/session'
@@ -202,6 +202,21 @@ export function registerEntryHandlers(): void {
         } catch (error) {
             console.error('Failed to copy password', error)
         }
+    })
+
+    ipcMain.handle('entries:openWebsite', async (event, website: string) => {
+        requireUnlocked(event)
+        if (typeof website !== 'string' || website.trim() === '') {
+            throw new Error('Invalid website URL')
+        }
+
+        const candidate = website.trim()
+        const url = new URL(/^[a-z][a-z\d+.-]*:/i.test(candidate) ? candidate : `https://${candidate}`)
+        if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+            throw new Error('Unsupported website protocol')
+        }
+
+        await shell.openExternal(url.toString())
     })
 
     /**

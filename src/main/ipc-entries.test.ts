@@ -15,7 +15,8 @@ const mocks = vi.hoisted(() => ({
     toggleFavorite: vi.fn(),
     getSetting: vi.fn(),
     writeText: vi.fn(),
-    readText: vi.fn()
+    readText: vi.fn(),
+    openExternal: vi.fn()
 }))
 
 vi.mock('electron', () => ({
@@ -24,7 +25,8 @@ vi.mock('electron', () => ({
             mocks.handlers.set(channel, handler)
         )
     },
-    clipboard: { writeText: mocks.writeText, readText: mocks.readText }
+    clipboard: { writeText: mocks.writeText, readText: mocks.readText },
+    shell: { openExternal: mocks.openExternal }
 }))
 vi.mock('../db/db', () => ({
     getAllFolders: mocks.getAllFolders,
@@ -124,5 +126,17 @@ describe('entry IPC handlers', () => {
         await vi.advanceTimersByTimeAsync(1000)
         expect(mocks.writeText).toHaveBeenLastCalledWith('')
         vi.useRealTimers()
+    })
+
+    it('opens websites in the default browser and adds https when needed', async () => {
+        await invoke('entries:openWebsite', 'example.com/login')
+        expect(mocks.openExternal).toHaveBeenCalledWith('https://example.com/login')
+    })
+
+    it('rejects unsafe website protocols', async () => {
+        await expect(invoke('entries:openWebsite', 'javascript:alert(1)')).rejects.toThrow(
+            'Unsupported website protocol'
+        )
+        expect(mocks.openExternal).not.toHaveBeenCalled()
     })
 })
