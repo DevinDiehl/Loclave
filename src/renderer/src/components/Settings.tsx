@@ -94,6 +94,7 @@ export default function SettingsPanel({ onClose, onSettingsSaved, theme: selecte
   const [importingVault, setImportingVault] = useState(false)
   const [importMessage, setImportMessage] = useState<string | null>(null)
   const [importError, setImportError] = useState<string | null>(null)
+  const [importingChrome, setImportingChrome] = useState(false)
   const [showBackupPasswordModal, setShowBackupPasswordModal] = useState(false)
   const [backupPasswordAction, setBackupPasswordAction] = useState<'export' | 'import' | null>(null)
   const [backupPassword, setBackupPassword] = useState('')
@@ -178,6 +179,24 @@ export default function SettingsPanel({ onClose, onSettingsSaved, theme: selecte
     setBackupPasswordError(null)
     setBackupPasswordAction('import')
     setShowBackupPasswordModal(true)
+  }
+
+  async function handleImportChrome() {
+    setImportMessage(null)
+    setImportError(null)
+    try {
+      setImportingChrome(true)
+      const result = await window.api.importChromeCsv()
+      if (result.canceled) setImportMessage('Chrome import cancelled.')
+      else {
+        setImportMessage(`Imported ${result.entryCount ?? 0} passwords from Chrome.`)
+        setTimeout(() => window.location.reload(), 800)
+      }
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : 'Failed to import Chrome passwords')
+    } finally {
+      setImportingChrome(false)
+    }
   }
 
   async function handleExportVault() {
@@ -438,6 +457,15 @@ export default function SettingsPanel({ onClose, onSettingsSaved, theme: selecte
                     disabled={exportingVault || backupPasswordLoading}
                   >
                     <ExportIcon /> {exportingVault ? 'Exporting...' : 'Export'}
+                  </button>
+                </div>
+                <div className="sp-action-row">
+                  <div>
+                    <p className="sp-action-label">Import from Chrome</p>
+                    <p className="sp-hint" style={{ marginTop: 2 }}>Add passwords from Chrome&apos;s exported CSV file.</p>
+                  </div>
+                  <button className="sp-action-btn" onClick={handleImportChrome} disabled={importingChrome}>
+                    <ImportIcon /> {importingChrome ? 'Importing...' : 'Import CSV'}
                   </button>
                 </div>
                 <div className="sp-action-row">

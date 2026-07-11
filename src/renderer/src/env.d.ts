@@ -68,6 +68,7 @@ interface Window {
             entryCount?: number
             folderCount?: number
         }>
+        importChromeCsv: () => Promise<{ success: boolean; canceled: boolean; filePath?: string; entryCount?: number }>
         deleteAllData: () => Promise<{ success: boolean; canceled: boolean }>
         changeMasterPassword: (currentPassword: string, newPassword: string) => Promise<void>
         verifyMasterPassword: (password: string) => Promise<boolean>
