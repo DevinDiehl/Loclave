@@ -20,6 +20,7 @@ interface Window {
             sortOrder?: number
         ) => Promise<{ success: boolean }>
         deleteFolder: (id: number) => Promise<{ success: boolean }>
+        exportFolderPdf: (folderId: number) => Promise<{ success: boolean; canceled: boolean; filePath?: string }>
         getAllEntries: () => Promise<Entry[]>
         getEntriesByFolder: (folderId: number) => Promise<Entry[]>
         searchEntries: (query: string) => Promise<Entry[]>

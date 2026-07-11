@@ -17,6 +17,7 @@ export interface Api {
         sortOrder?: number
     ) => Promise<{ success: boolean }>
     deleteFolder: (id: number) => Promise<{ success: boolean }>
+    exportFolderPdf: (folderId: number) => Promise<{ success: boolean; canceled: boolean; filePath?: string }>
     reportActivity: () => void
     onSessionLocked: (cb: () => void) => () => void
     getAllEntries: () => Promise<Entry[]>
@@ -141,6 +142,9 @@ contextBridge.exposeInMainWorld('api', {
 
     deleteFolder: async (id: number) => {
         return await ipcRenderer.invoke('folders:delete', id)
+    },
+    exportFolderPdf: async (folderId: number) => {
+        return await ipcRenderer.invoke('folders:exportPdf', folderId)
     },
     getAllEntries: async () => {
         return await ipcRenderer.invoke('entries:getAll')
