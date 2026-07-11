@@ -67,6 +67,7 @@ export interface Api {
         entryCount?: number
         folderCount?: number
     }>
+    importChromeCsv: () => Promise<{ success: boolean; canceled: boolean; filePath?: string; entryCount?: number }>
     deleteAllData: () => Promise<{ success: boolean; canceled: boolean }>
     changeMasterPassword: (currentPassword: string, newPassword: string) => Promise<void>
     verifyMasterPassword: (password: string) => Promise<boolean>
@@ -263,6 +264,10 @@ contextBridge.exposeInMainWorld('api', {
         folderCount?: number
     }> => {
         return await ipcRenderer.invoke('settings:importVault', masterPassword)
+    },
+
+    importChromeCsv: async () => {
+        return await ipcRenderer.invoke('settings:importChromeCsv')
     },
 
     deleteAllData: async (): Promise<{ success: boolean; canceled: boolean }> => {

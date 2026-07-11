@@ -15,6 +15,7 @@ import {
 import { clearKeyFromKeychain } from '../cryptography/keychain'
 import { decryptFromString, encryptToString } from '../cryptography/crypto'
 import { requireUnlocked } from './ipc-security'
+import { parseChromePasswordCsv } from './chrome-csv'
 
 export function registerSettingsHandlers(mainWindow: BrowserWindow): void {
     const saveValue = (key: string, value: string | number | boolean): void => {
@@ -183,6 +184,48 @@ export function registerSettingsHandlers(mainWindow: BrowserWindow): void {
             entryCount: snapshot.entries.length,
             folderCount: snapshot.folders.length
         }
+    })
+
+    ipcMain.handle('settings:importChromeCsv', async (event) => {
+        requireUnlocked(event)
+        const sessionKey = getSessionKey()
+        if (!sessionKey) throw new Error('Session not unlocked')
+
+        const result = await dialog.showOpenDialog(mainWindow, {
+            title: 'Import passwords from Chrome',
+            buttonLabel: 'Import Passwords',
+            filters: [{ name: 'Chrome Password CSV', extensions: ['csv'] }],
+            properties: ['openFile']
+        })
+        if (result.canceled || result.filePaths.length === 0) return { success: false, canceled: true }
+
+        const filePath = result.filePaths[0]
+        const rows = parseChromePasswordCsv(await readFile(filePath, 'utf8'))
+        if (rows.length === 0) throw new Error('Chrome CSV does not contain any passwords')
+
+        const confirmed = await dialog.showMessageBox(mainWindow, {
+            type: 'question',
+            buttons: ['Import Passwords', 'Cancel'],
+            defaultId: 0,
+            cancelId: 1,
+            title: 'Import passwords from Chrome',
+            message: `Import ${rows.length} password${rows.length === 1 ? '' : 's'}?`,
+            detail: 'The imported passwords will be added to a “Chrome Import” folder. Existing vault entries will not be changed.'
+        })
+        if (confirmed.response !== 0) return { success: false, canceled: true }
+
+        let folder = db.getAllFolders().find((item) => item.name === 'Chrome Import')
+        if (!folder) {
+            const id = db.createFolder({ name: 'Chrome Import', icon: 'folder', color: '#4285f4' })
+            folder = db.getFolderById(id)
+        }
+        if (!folder) throw new Error('Could not create the Chrome Import folder')
+
+        for (const row of rows) {
+            const id = db.createEntry({ folderId: folder.id, title: row.name, username: row.username, password: '', url: row.url || null, notes: row.note || null })
+            db.updateEntry({ id, folderId: folder.id, title: row.name, username: row.username, password: encryptToString(row.password, sessionKey, `entry:${id}`), url: row.url || null, notes: row.note || null, favorite: 0 })
+        }
+        return { success: true, canceled: false, filePath, entryCount: rows.length }
     })
 
     ipcMain.handle('settings:deleteAllData', async (event) => {
