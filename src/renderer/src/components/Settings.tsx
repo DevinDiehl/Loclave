@@ -34,6 +34,21 @@ const MS_TO_CLIPBOARD_TIMEOUT: Record<string, ClipboardTimeout> = {
 
 type Theme = 'light' | 'dark' | 'darker' | 'midnight'
 
+const DEFAULT_SETTINGS = {
+  autoLock: '5min' as AutoLockDuration,
+  clipboardTimeout: '30s' as ClipboardTimeout,
+  requirePasswordOnCopy: false,
+  theme: 'dark' as Theme,
+  showFavicons: true,
+  startOnLogin: false,
+  minimizeToTray: true,
+  checkBreaches: true,
+}
+
+function readBooleanSetting(value: string | undefined, defaultValue: boolean): boolean {
+  return value === undefined ? defaultValue : value === 'true'
+}
+
 interface SettingsProps {
   onClose: () => void
   onSettingsSaved?: () => void
@@ -55,12 +70,12 @@ export default function SettingsPanel({ onClose, onSettingsSaved, theme: selecte
   const [deleteAllDataError, setDeleteAllDataError] = useState<string | null>(null)
 
   // Security settings
-  const [autoLock, setAutoLock] = useState<AutoLockDuration>('5min')
-  const [clipboardTimeout, setClipboardTimeout] = useState<ClipboardTimeout>('30s')
-  const [requirePasswordOnCopy, setRequirePasswordOnCopy] = useState(false)
+  const [autoLock, setAutoLock] = useState<AutoLockDuration>(DEFAULT_SETTINGS.autoLock)
+  const [clipboardTimeout, setClipboardTimeout] = useState<ClipboardTimeout>(DEFAULT_SETTINGS.clipboardTimeout)
+  const [requirePasswordOnCopy, setRequirePasswordOnCopy] = useState(DEFAULT_SETTINGS.requirePasswordOnCopy)
 
   // Appearance settings
-  const [theme, setTheme] = useState<Theme>('dark')
+  const [theme, setTheme] = useState<Theme>(DEFAULT_SETTINGS.theme)
   const isLightTheme = selectedTheme === 'light'
   const themeVars = {
     '--sp-modal-bg': isLightTheme ? '#ffffff' : '#16161f',
@@ -82,12 +97,12 @@ export default function SettingsPanel({ onClose, onSettingsSaved, theme: selecte
     '--sp-shadow': isLightTheme ? '0 30px 80px rgba(15,23,42,0.12)' : '0 40px 100px rgba(0,0,0,0.6)',
     colorScheme: isLightTheme ? 'light' : 'dark',
   } as React.CSSProperties
-  const [showFavicons, setShowFavicons] = useState(true)
+  const [showFavicons, setShowFavicons] = useState(DEFAULT_SETTINGS.showFavicons)
 
   // General settings
-  const [startOnLogin, setStartOnLogin] = useState(false)
-  const [minimizeToTray, setMinimizeToTray] = useState(true)
-  const [checkBreaches, setCheckBreaches] = useState(true)
+  const [startOnLogin, setStartOnLogin] = useState(DEFAULT_SETTINGS.startOnLogin)
+  const [minimizeToTray, setMinimizeToTray] = useState(DEFAULT_SETTINGS.minimizeToTray)
+  const [checkBreaches, setCheckBreaches] = useState(DEFAULT_SETTINGS.checkBreaches)
   const [exportingVault, setExportingVault] = useState(false)
   const [exportMessage, setExportMessage] = useState<string | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
@@ -104,11 +119,13 @@ export default function SettingsPanel({ onClose, onSettingsSaved, theme: selecte
     (async () => {
       setAutoLock(MS_TO_AUTO_LOCK_DURATION[String(await window.api.getSetting('lock_timeout_ms')) as keyof typeof MS_TO_AUTO_LOCK_DURATION] || '5min');
       setClipboardTimeout(MS_TO_CLIPBOARD_TIMEOUT[String(await window.api.getSetting('clipboardTimeout')) as keyof typeof MS_TO_CLIPBOARD_TIMEOUT] || '30s');
-      setRequirePasswordOnCopy(await window.api.getSetting('requirePasswordOnCopy') === 'true');
+      setRequirePasswordOnCopy(readBooleanSetting(await window.api.getSetting('requirePasswordOnCopy'), DEFAULT_SETTINGS.requirePasswordOnCopy));
       setTheme((await window.api.getSetting('theme')) as Theme || 'dark');
-      setShowFavicons(await window.api.getSetting('showFavicons') === 'true');
-      setStartOnLogin(await window.api.getSetting('startOnLogin') === 'true');
-      setMinimizeToTray(await window.api.getSetting('minimizeToTray') === 'true');
+      setShowFavicons(readBooleanSetting(await window.api.getSetting('showFavicons'), DEFAULT_SETTINGS.showFavicons));
+      setStartOnLogin(readBooleanSetting(await window.api.getSetting('startOnLogin'), DEFAULT_SETTINGS.startOnLogin));
+      setMinimizeToTray(readBooleanSetting(await window.api.getSetting('minimizeToTray'), DEFAULT_SETTINGS.minimizeToTray));
+      const storedCheckBreaches = await window.api.getSetting('checkBreaches')
+      setCheckBreaches(readBooleanSetting(storedCheckBreaches, DEFAULT_SETTINGS.checkBreaches))
     })();
 
 
@@ -127,6 +144,17 @@ export default function SettingsPanel({ onClose, onSettingsSaved, theme: selecte
     await window.api.saveCheckBreaches(checkBreaches);
     onSettingsSaved?.();
     onClose();
+  }
+
+  function resetSettings() {
+    setAutoLock(DEFAULT_SETTINGS.autoLock)
+    setClipboardTimeout(DEFAULT_SETTINGS.clipboardTimeout)
+    setRequirePasswordOnCopy(DEFAULT_SETTINGS.requirePasswordOnCopy)
+    setTheme(DEFAULT_SETTINGS.theme)
+    setShowFavicons(DEFAULT_SETTINGS.showFavicons)
+    setStartOnLogin(DEFAULT_SETTINGS.startOnLogin)
+    setMinimizeToTray(DEFAULT_SETTINGS.minimizeToTray)
+    setCheckBreaches(DEFAULT_SETTINGS.checkBreaches)
   }
 
   async function handleChangePassword() {
@@ -467,10 +495,8 @@ export default function SettingsPanel({ onClose, onSettingsSaved, theme: selecte
 
         {/* Footer */}
         <div className="sp-footer">
-          <button className="sp-cancel-btn" onClick={async () => {
-            await saveSettings();
-          }}
-          >Discard</button>
+          <button className="sp-reset-btn" onClick={resetSettings}>Reset to Defaults</button>
+          <button className="sp-cancel-btn" onClick={onClose}>Discard</button>
           <button className="sp-save-btn" onClick={saveSettings}>Save Changes</button>
         </div>
       </div>
@@ -1296,6 +1322,23 @@ const STYLES = `
   }
 
   .sp-cancel-btn:hover {
+    background:     var(--sp-hover);
+    color:          var(--sp-text);
+  }
+
+  .sp-reset-btn {
+    padding:        11px;
+    background:     transparent;
+    border:         1px solid var(--sp-border);
+    border-radius:  9px;
+    color:          var(--sp-text-soft);
+    font-family:    'DM Sans', sans-serif;
+    font-size:      12px;
+    cursor:         pointer;
+    transition:     background 0.15s, color 0.15s;
+  }
+
+  .sp-reset-btn:hover {
     background:     var(--sp-hover);
     color:          var(--sp-text);
   }
