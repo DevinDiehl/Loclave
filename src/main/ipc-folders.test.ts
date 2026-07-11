@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('electron', () => ({
+    BrowserWindow: vi.fn(),
+    dialog: { showSaveDialog: vi.fn() },
     ipcMain: {
         handle: vi.fn((channel: string, handler: (...args: unknown[]) => unknown) =>
             mocks.handlers.set(channel, handler)
@@ -20,11 +22,14 @@ vi.mock('../db/db', () => ({
     getAllFolders: mocks.getAllFolders,
     createFolder: mocks.createFolder,
     updateFolder: mocks.updateFolder,
-    deleteFolder: mocks.deleteFolder
+    deleteFolder: mocks.deleteFolder,
+    getEntriesByFolder: vi.fn()
 }))
 vi.mock('./ipc-security', () => ({ requireUnlocked: mocks.requireUnlocked }))
+vi.mock('../cryptography/session', () => ({ getSessionKey: vi.fn() }))
+vi.mock('../cryptography/crypto', () => ({ decryptFromString: vi.fn() }))
 
-import { registerFolderHandlers } from './ipc-folders'
+import { buildFolderPdfHtml, registerFolderHandlers } from './ipc-folders'
 
 const event = { sender: {} }
 const invoke = (channel: string, ...args: unknown[]): Promise<unknown> =>
@@ -34,7 +39,7 @@ describe('folder IPC handlers', () => {
     beforeEach(() => {
         vi.clearAllMocks()
         mocks.handlers.clear()
-        registerFolderHandlers()
+        registerFolderHandlers({} as never)
     })
 
     it('registers every folder channel', () => {
@@ -42,7 +47,8 @@ describe('folder IPC handlers', () => {
             'folders:getAll',
             'folders:create',
             'folders:update',
-            'folders:delete'
+            'folders:delete',
+            'folders:exportPdf'
         ])
     })
 
@@ -77,5 +83,16 @@ describe('folder IPC handlers', () => {
         })
         await expect(invoke('folders:delete', 4)).resolves.toEqual({ success: false })
         expect(mocks.deleteFolder).toHaveBeenCalledWith(4)
+    })
+
+    it('escapes folder and entry data in the printable document', () => {
+        const html = buildFolderPdfHtml('<Personal>', [{
+            title: '<Bank>', username: 'me&you', password: 'p<ass', url: null, notes: 'private'
+        }])
+        expect(html).toContain('&lt;Personal&gt;')
+        expect(html).toContain('&lt;Bank&gt;')
+        expect(html).toContain('me&amp;you')
+        expect(html).toContain('p&lt;ass')
+        expect(html).not.toContain('<Bank>')
     })
 })

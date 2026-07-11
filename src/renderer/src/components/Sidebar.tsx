@@ -28,6 +28,7 @@ export default function Sidebar({
   const [error,         setError]         = useState('')
   const [editError,     setEditError]     = useState('')
   const [deletingId,    setDeletingId]    = useState<number | null>(null)
+  const [exportingId,   setExportingId]   = useState<number | null>(null)
   const [draggedFolderId, setDraggedFolderId] = useState<number | null>(null)
   const newFolderRef                      = useRef<HTMLInputElement>(null)
   const editFolderRef                     = useRef<HTMLInputElement>(null)
@@ -186,6 +187,18 @@ export default function Sidebar({
     }
   }
 
+  async function exportFolder(folder: Folder, e: React.MouseEvent) {
+    e.stopPropagation()
+    setExportingId(folder.id)
+    try {
+      await window.api.exportFolderPdf(folder.id)
+    } catch (error) {
+      console.error('[Sidebar] Failed to export folder:', error)
+    } finally {
+      setExportingId(null)
+    }
+  }
+
   const totalEntries = folders.reduce((sum, f) => sum + f.entry_count, 0)
 
   return (
@@ -297,6 +310,14 @@ export default function Sidebar({
                     <span className="entry-count">{folder.entry_count}</span>
                     {hoveredId === folder.id && (
                       <>
+                        <button
+                          className="edit-btn"
+                          onClick={(e) => exportFolder(folder, e)}
+                          title={`Export ${folder.name} as PDF`}
+                          disabled={exportingId === folder.id}
+                        >
+                          {exportingId === folder.id ? <SpinnerIcon /> : <PrintIcon />}
+                        </button>
                         <button
                           className="edit-btn"
                           onClick={(e) => startEditing(folder, e)}
@@ -490,6 +511,16 @@ function EditIcon() {
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 20h9" />
       <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+    </svg>
+  )
+}
+
+function PrintIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="6 9 6 2 18 2 18 9" />
+      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+      <rect x="6" y="14" width="12" height="8" />
     </svg>
   )
 }

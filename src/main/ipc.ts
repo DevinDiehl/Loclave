@@ -146,7 +146,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     return { success: true }
   })
 
-  registerFolderHandlers()
+  registerFolderHandlers(mainWindow)
   registerEntryHandlers()
   registerSettingsHandlers(mainWindow)
 
