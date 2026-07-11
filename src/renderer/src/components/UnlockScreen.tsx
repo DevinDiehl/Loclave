@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { UnlockScreenProps } from '../../../types/types'
+import appIcon from '../../../../resources/icon.png'
 
 export default function UnlockScreen({ isFirstLaunch, onUnlocked, theme = 'dark' }: UnlockScreenProps) {
   const [password, setPassword]           = useState('')
@@ -85,14 +86,15 @@ export default function UnlockScreen({ isFirstLaunch, onUnlocked, theme = 'dark'
         transition: 'opacity 0.5s ease, transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
       }}>
 
-        {/* Lock icon */}
+        {/* App brand */}
         <div style={{
-          ...styles.iconWrap,
+          ...styles.brandRow,
           opacity:    mounted ? 1 : 0,
           transform:  mounted ? 'translateY(0)' : 'translateY(8px)',
           transition: 'opacity 0.5s ease 0.1s, transform 0.5s ease 0.1s',
         }}>
-          <LockIcon locked={!loading} />
+          <img src={appIcon} alt="Lockstep" style={styles.appIcon} />
+          <span style={{ ...styles.brandText, color: theme === 'light' ? '#18202c' : '#f0eeff' }}>Lockstep</span>
         </div>
 
         {/* Title */}
@@ -206,7 +208,7 @@ export default function UnlockScreen({ isFirstLaunch, onUnlocked, theme = 'dark'
             opacity:    mounted ? 1 : 0,
             transition: 'opacity 0.5s ease 0.4s',
           }}>
-            Vault locks automatically after 5 minutes of inactivity.
+            Welcome to Lockstep — your vault is ready when you are.
           </p>
         )}
       </div>
@@ -229,17 +231,6 @@ export default function UnlockScreen({ isFirstLaunch, onUnlocked, theme = 'dark'
         }
       `}</style>
     </div>
-  )
-}
-
-function LockIcon({ locked }: { locked: boolean }) {
-  return (
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-      {locked
-        ? <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-        : <path d="M7 11V7a5 5 0 0 1 9.9-1" />}
-    </svg>
   )
 }
 
@@ -320,17 +311,24 @@ const styles: Record<string, React.CSSProperties> = {
     backdropFilter:  'blur(24px)',
     boxShadow:       '0 32px 80px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)',
   },
-  iconWrap: {
+  brandRow: {
     display:         'flex',
     alignItems:      'center',
-    justifyContent:  'center',
-    width:           '56px',
-    height:          '56px',
-    borderRadius:    '16px',
-    background:      'rgba(168,148,255,0.1)',
-    border:          '1px solid rgba(168,148,255,0.2)',
-    color:           'rgba(168,148,255,0.9)',
+    gap:             '12px',
     marginBottom:    '28px',
+  },
+  appIcon: {
+    width:           '44px',
+    height:          '44px',
+    borderRadius:    '12px',
+    objectFit:       'cover',
+    boxShadow:       '0 8px 24px rgba(0, 0, 0, 0.2)',
+  },
+  brandText: {
+    fontFamily:      "'DM Serif Display', serif",
+    fontSize:        '24px',
+    fontWeight:      400,
+    letterSpacing:   '-0.02em',
   },
   titleBlock: {
     marginBottom:    '32px',
