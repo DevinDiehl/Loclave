@@ -57,6 +57,7 @@ export interface Api {
     saveMinimizeToTray: (value: boolean) => Promise<void>
     saveCheckBreaches: (value: boolean) => Promise<void>
     copyWithTimeout: (password: string) => Promise<void>
+    openWebsite: (website: string) => Promise<void>
     exportVault: (
         masterPassword: string
     ) => Promise<{ success: boolean; canceled: boolean; filePath?: string }>
@@ -246,6 +247,10 @@ contextBridge.exposeInMainWorld('api', {
 
     copyWithTimeout: async (password: string): Promise<void> => {
         await ipcRenderer.invoke('entries:copyWithTimeout', password)
+    },
+
+    openWebsite: async (website: string): Promise<void> => {
+        await ipcRenderer.invoke('entries:openWebsite', website)
     },
 
     exportVault: async (
