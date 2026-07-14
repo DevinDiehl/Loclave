@@ -1,10 +1,62 @@
-import { app, BrowserWindow, shell } from 'electron'
+import { app, BrowserWindow, Menu, shell, type MenuItemConstructorOptions } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import * as db from '../db/db'
 import { registerIpcHandlers } from './ipc'
 
 let mainWindow: BrowserWindow | null = null
+
+const SUPPORT_URL = 'https://www.google.com'
+
+function createApplicationMenu(): void {
+    const isMac = process.platform === 'darwin'
+    const openSupportPage = (): void => {
+        void shell.openExternal(SUPPORT_URL)
+    }
+
+    const template: MenuItemConstructorOptions[] = [
+        ...(isMac
+            ? [
+                  {
+                      label: app.name,
+                      submenu: [
+                          { role: 'about' as const },
+                          { type: 'separator' as const },
+                          { role: 'services' as const },
+                          { type: 'separator' as const },
+                          { role: 'hide' as const },
+                          { role: 'hideOthers' as const },
+                          { role: 'unhide' as const },
+                          { type: 'separator' as const },
+                          { role: 'quit' as const }
+                      ]
+                  }
+              ]
+            : []),
+        {
+            label: 'File',
+            submenu: [isMac ? { role: 'close' } : { role: 'quit' }]
+        },
+        { role: 'editMenu' },
+        { role: 'viewMenu' },
+        { role: 'windowMenu' },
+        {
+            role: 'help',
+            submenu: [
+                {
+                    label: 'Report a Bug',
+                    click: openSupportPage
+                },
+                {
+                    label: 'Feedback',
+                    click: openSupportPage
+                }
+            ]
+        }
+    ]
+
+    Menu.setApplicationMenu(Menu.buildFromTemplate(template))
+}
 
 function getAppIconPath(): string {
     return app.isPackaged
@@ -39,7 +91,8 @@ function createWindow(): void {
     mainWindow.webContents.setWindowOpenHandler(({ url }) => {
         try {
             const parsed = new URL(url)
-            if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return { action: 'deny' }
+            if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:')
+                return { action: 'deny' }
             void shell.openExternal(parsed.toString())
         } catch {
             return { action: 'deny' }
@@ -72,6 +125,7 @@ app.whenReady().then(() => {
         openAsHidden: minimizeToTray === 'true'
     })
 
+    createApplicationMenu()
     createWindow()
 
     app.on('activate', () => {
