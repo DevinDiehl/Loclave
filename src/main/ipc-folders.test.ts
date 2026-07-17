@@ -6,12 +6,16 @@ const mocks = vi.hoisted(() => ({
     getAllFolders: vi.fn(),
     createFolder: vi.fn(),
     updateFolder: vi.fn(),
-    deleteFolder: vi.fn()
+    deleteFolder: vi.fn(),
+    showMessageBox: vi.fn()
 }))
 
 vi.mock('electron', () => ({
     BrowserWindow: vi.fn(),
-    dialog: { showSaveDialog: vi.fn() },
+    dialog: {
+        showMessageBox: mocks.showMessageBox,
+        showSaveDialog: vi.fn()
+    },
     ipcMain: {
         handle: vi.fn((channel: string, handler: (...args: unknown[]) => unknown) =>
             mocks.handlers.set(channel, handler)
@@ -69,8 +73,9 @@ describe('folder IPC handlers', () => {
         })
     })
 
-    it('updates and deletes folders', async () => {
+    it('updates folders and deletes empty folders without confirmation', async () => {
         mocks.updateFolder.mockReturnValue(true)
+        mocks.getAllFolders.mockReturnValue([{ id: 4, name: 'Archive', entry_count: 0 }])
         mocks.deleteFolder.mockReturnValue(false)
         await expect(invoke('folders:update', 4, 'Archive', '#123456', 2)).resolves.toEqual({
             success: true
@@ -82,6 +87,43 @@ describe('folder IPC handlers', () => {
             sort_order: 2
         })
         await expect(invoke('folders:delete', 4)).resolves.toEqual({ success: false })
+        expect(mocks.deleteFolder).toHaveBeenCalledWith(4)
+        expect(mocks.showMessageBox).not.toHaveBeenCalled()
+    })
+
+    it('does not delete a non-empty folder when confirmation is canceled', async () => {
+        mocks.getAllFolders.mockReturnValue([{ id: 4, name: 'Archive', entry_count: 2 }])
+        mocks.showMessageBox.mockResolvedValue({ response: 1 })
+
+        await expect(invoke('folders:delete', 4)).resolves.toEqual({
+            success: false,
+            canceled: true
+        })
+
+        expect(mocks.showMessageBox).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({
+                type: 'warning',
+                buttons: ['Delete Folder', 'Cancel'],
+                defaultId: 1,
+                cancelId: 1,
+                message: 'Delete “Archive” and its 2 entries?'
+            })
+        )
+        expect(mocks.deleteFolder).not.toHaveBeenCalled()
+    })
+
+    it('deletes a non-empty folder after explicit confirmation', async () => {
+        mocks.getAllFolders.mockReturnValue([{ id: 4, name: 'Archive', entry_count: 1 }])
+        mocks.showMessageBox.mockResolvedValue({ response: 0 })
+        mocks.deleteFolder.mockReturnValue(true)
+
+        await expect(invoke('folders:delete', 4)).resolves.toEqual({ success: true })
+
+        expect(mocks.showMessageBox).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({ message: 'Delete “Archive” and its 1 entry?' })
+        )
         expect(mocks.deleteFolder).toHaveBeenCalledWith(4)
     })
 
