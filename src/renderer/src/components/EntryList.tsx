@@ -12,7 +12,8 @@ export default function EntryList({ selectedFolderId, folders, settingsVersion =
   const [search,       setSearch]       = useState('')
   const [showForm,     setShowForm]     = useState(false)
   const [editingEntry, setEditingEntry] = useState<Entry | null>(null)
-  const [copiedId,     setCopiedId]     = useState<number | null>(null)
+  const [copiedPasswordId, setCopiedPasswordId] = useState<number | null>(null)
+  const [copiedUsernameId, setCopiedUsernameId] = useState<number | null>(null)
   const [deletingId,   setDeletingId]   = useState<number | null>(null)
   const [mounted,      setMounted]      = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
@@ -125,6 +126,19 @@ export default function EntryList({ selectedFolderId, folders, settingsVersion =
   }, [search, showForm, showVerifyModal, verifyLoading])
 
   // ── Actions ─────────────────────────────────────────────────────────────────
+
+  async function copyUsername(entry: Entry, e: React.MouseEvent) {
+    e.stopPropagation()
+    if (!entry.username) return
+
+    try {
+      await window.api.copyWithTimeout(entry.username)
+      setCopiedUsernameId(entry.id)
+      setTimeout(() => setCopiedUsernameId(null), 2000)
+    } catch (error) {
+      console.error('Failed to copy username', error)
+    }
+  }
   
   async function copyPassword(entry: Entry, e: React.MouseEvent) {
     e.stopPropagation()
@@ -142,8 +156,8 @@ export default function EntryList({ selectedFolderId, folders, settingsVersion =
     // If not required, copy directly
     try {
       const plain = await window.api.decryptPassword(entry.password, entry.id)
-      setCopiedId(entry.id)
-      setTimeout(() => setCopiedId(null), 2000)
+      setCopiedPasswordId(entry.id)
+      setTimeout(() => setCopiedPasswordId(null), 2000)
       await window.api.copyWithTimeout(plain)
     } catch (error) {
       console.error('Failed to copy password', error)
@@ -167,8 +181,8 @@ export default function EntryList({ selectedFolderId, folders, settingsVersion =
       
       // Password verified, copy the entry password
       const plain = await window.api.decryptPassword(pendingEntry.password, pendingEntry.id)
-      setCopiedId(pendingEntry.id)
-      setTimeout(() => setCopiedId(null), 2000)
+      setCopiedPasswordId(pendingEntry.id)
+      setTimeout(() => setCopiedPasswordId(null), 2000)
       await window.api.copyWithTimeout(plain)
       
       // Close modal and reset
@@ -342,13 +356,26 @@ export default function EntryList({ selectedFolderId, folders, settingsVersion =
                       <StarIcon filled={!!entry.favorite} />
                     </button>
 
+                    {/* Copy username or email */}
+                    {entry.username && (
+                      <button
+                        className={`el-icon-btn ${copiedUsernameId === entry.id ? 'el-copied' : ''}`}
+                        onClick={e => copyUsername(entry, e)}
+                        title="Copy username or email"
+                        aria-label={`Copy username or email for ${entry.title}`}
+                      >
+                        {copiedUsernameId === entry.id ? <CheckIcon /> : <UserCopyIcon />}
+                      </button>
+                    )}
+
                     {/* Copy password */}
                     <button
-                      className={`el-icon-btn ${copiedId === entry.id ? 'el-copied' : ''}`}
+                      className={`el-icon-btn ${copiedPasswordId === entry.id ? 'el-copied' : ''}`}
                       onClick={e => copyPassword(entry, e)}
                       title="Copy password"
+                      aria-label={`Copy password for ${entry.title}`}
                     >
-                      {copiedId === entry.id ? <CheckIcon /> : <CopyIcon />}
+                      {copiedPasswordId === entry.id ? <CheckIcon /> : <CopyIcon />}
                     </button>
 
                     {entry.url && (
@@ -553,6 +580,9 @@ function PlusIcon() {
 }
 function CopyIcon() {
   return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+}
+function UserCopyIcon() {
+  return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="8" cy="7" r="3"/><path d="M2.5 19c0-3.3 2.5-5.5 5.5-5.5 1.5 0 2.8.5 3.8 1.4"/><rect x="14" y="10" width="7.5" height="7.5" rx="1.5"/><path d="M17 7.5h3a1.5 1.5 0 0 1 1.5 1.5"/></svg>
 }
 function CheckIcon() {
   return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
