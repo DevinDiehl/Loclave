@@ -885,6 +885,9 @@ const STYLES = `
   /* ── Footer ──────────────────────────────────────────────────── */
 
   .sidebar-footer {
+    display:          flex;
+    flex-direction:   column;
+    gap:              6px;
     padding:          10px 6px 16px;
     border-top:       1px solid rgba(124,109,216,0.14);
   }
