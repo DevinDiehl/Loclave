@@ -45,12 +45,32 @@ export function registerFolderHandlers(mainWindow: BrowserWindow): void {
     )
 
     /**
-     * Deletes a folder and all its entries (CASCADE).
+     * Deletes a folder and all its entries (CASCADE), after confirming when the
+     * folder is not empty.
      * @param id  Folder ID
-     * @returns   { success: boolean }
+     * @returns   { success: boolean, canceled?: boolean }
      */
     ipcMain.handle('folders:delete', async (event, id: number) => {
         requireUnlocked(event)
+
+        const folder = db.getAllFolders().find((item) => item.id === id)
+        if (folder && folder.entry_count > 0) {
+            const entryLabel = folder.entry_count === 1 ? 'entry' : 'entries'
+            const confirmed = await dialog.showMessageBox(mainWindow, {
+                type: 'warning',
+                buttons: ['Delete Folder', 'Cancel'],
+                defaultId: 1,
+                cancelId: 1,
+                title: 'Delete folder',
+                message: `Delete “${folder.name}” and its ${folder.entry_count} ${entryLabel}?`,
+                detail: 'The folder and every entry inside it will be permanently deleted. This action cannot be undone.'
+            })
+
+            if (confirmed.response !== 0) {
+                return { success: false, canceled: true }
+            }
+        }
+
         const success = db.deleteFolder(id)
         return { success }
     })
