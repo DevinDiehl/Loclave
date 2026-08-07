@@ -67,7 +67,10 @@ export default function UnlockScreen({ isFirstLaunch, onUnlocked, theme = 'dark'
   
 
   return (
-    <div style={{ ...styles.root, background: theme === 'light' ? '#f5f6fb' : '#0d0d12' }}>
+    <div
+      className="unlock-screen"
+      style={{ ...styles.root, background: theme === 'light' ? '#f5f6fb' : '#0d0d12' }}
+    >
       
       {/* Ambient background blobs */}
       <div style={styles.blobTopLeft} />
@@ -217,6 +220,12 @@ export default function UnlockScreen({ isFirstLaunch, onUnlocked, theme = 'dark'
         @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@400;500&display=swap');
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        .unlock-screen { -webkit-app-region: drag; }
+        .unlock-screen form,
+        .unlock-screen input,
+        .unlock-screen button { -webkit-app-region: no-drag; }
+        .unlock-screen img { -webkit-user-drag: none; }
 
         input::placeholder { color: rgba(255,255,255,0.2); }
         input:focus { outline: none; border-color: rgba(168,148,255,0.6) !important; box-shadow: 0 0 0 3px rgba(168,148,255,0.12); }
