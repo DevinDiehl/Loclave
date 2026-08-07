@@ -16,7 +16,7 @@ async function checkPasswordBreach(password: string): Promise<{ count: number }>
             {
                 timeout: 5000,
                 headers: {
-                    'User-Agent': 'Password-Keep/1.0'
+                    'User-Agent': 'Loclave/1.0'
                 }
             },
             (res) => {

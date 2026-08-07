@@ -1,5 +1,5 @@
-appId: com.Lockstep.app
-productName: Lockstep
+appId: com.devindiehl.loclave
+productName: Loclave
 icon: resources/icon
 directories:
   buildResources: build
@@ -13,7 +13,7 @@ files:
 asarUnpack:
   - resources/**
 win:
-  executableName: Lockstep
+  executableName: Loclave
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}

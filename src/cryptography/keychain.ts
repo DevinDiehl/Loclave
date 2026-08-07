@@ -1,6 +1,6 @@
 import keytar from 'keytar';
 
-const KEYCHAIN_SERVICE = 'com.yourapp.password-keep';
+const KEYCHAIN_SERVICE = 'com.devindiehl.loclave';
 const KEYCHAIN_ACCOUNT = 'session-key';
 
 /**

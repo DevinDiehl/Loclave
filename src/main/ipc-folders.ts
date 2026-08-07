@@ -151,5 +151,5 @@ export function buildFolderPdfHtml(folderName: string, entries: Array<{ title: s
         .secret { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; } .notes { line-height: 1.45; }
         .empty { color: #667085; font-style: italic; }
         footer { color: #8a91a2; font-size: 9px; margin-top: 18px; }
-    </style></head><body><header><h1>${escapeHtml(folderName)}</h1><p>${entries.length} ${entries.length === 1 ? 'entry' : 'entries'} exported from Lockstep</p></header>${cards}<footer>Contains sensitive information. Store this document securely.</footer></body></html>`
+    </style></head><body><header><h1>${escapeHtml(folderName)}</h1><p>${entries.length} ${entries.length === 1 ? 'entry' : 'entries'} exported from Loclave</p></header>${cards}<footer>Contains sensitive information. Store this document securely.</footer></body></html>`
 }

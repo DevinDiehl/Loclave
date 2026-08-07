@@ -1,6 +1,6 @@
-# electron-app
+# Loclave
 
-An Electron application with React and TypeScript
+A private, local-first password vault built with Electron, React, and TypeScript.
 
 ## Recommended IDE Setup
 

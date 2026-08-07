@@ -110,7 +110,7 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
-    electronApp.setAppUserModelId('com.yourapp.password-keep')
+    electronApp.setAppUserModelId('com.devindiehl.loclave')
 
     app.on('browser-window-created', (_, window) => {
         optimizer.watchWindowShortcuts(window)

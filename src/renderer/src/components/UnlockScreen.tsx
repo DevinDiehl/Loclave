@@ -93,8 +93,8 @@ export default function UnlockScreen({ isFirstLaunch, onUnlocked, theme = 'dark'
           transform:  mounted ? 'translateY(0)' : 'translateY(8px)',
           transition: 'opacity 0.5s ease 0.1s, transform 0.5s ease 0.1s',
         }}>
-          <img src={appIcon} alt="Lockstep" style={styles.appIcon} />
-          <span style={{ ...styles.brandText, color: theme === 'light' ? '#18202c' : '#f0eeff' }}>Lockstep</span>
+          <img src={appIcon} alt="Loclave" style={styles.appIcon} />
+          <span style={{ ...styles.brandText, color: theme === 'light' ? '#18202c' : '#f0eeff' }}>Loclave</span>
         </div>
 
         {/* Title */}
@@ -208,7 +208,7 @@ export default function UnlockScreen({ isFirstLaunch, onUnlocked, theme = 'dark'
             opacity:    mounted ? 1 : 0,
             transition: 'opacity 0.5s ease 0.4s',
           }}>
-            Welcome to Lockstep — your vault is ready when you are.
+            Welcome to Loclave — your vault is ready when you are.
           </p>
         )}
       </div>

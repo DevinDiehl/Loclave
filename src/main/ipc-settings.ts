@@ -83,10 +83,10 @@ export function registerSettingsHandlers(mainWindow: BrowserWindow): void {
         const dateStamp = now.toISOString().slice(0, 10)
         const result = await dialog.showSaveDialog(mainWindow, {
             title: 'Export encrypted vault backup',
-            defaultPath: `password-keep-backup-${dateStamp}.pkvault`,
+            defaultPath: `loclave-backup-${dateStamp}.locvault`,
             buttonLabel: 'Export Backup',
             filters: [
-                { name: 'Encrypted Vault Backup', extensions: ['pkvault'] },
+                { name: 'Loclave Vault Backup', extensions: ['locvault'] },
                 { name: 'JSON', extensions: ['json'] }
             ],
             properties: ['createDirectory', 'showOverwriteConfirmation']
@@ -109,7 +109,7 @@ export function registerSettingsHandlers(mainWindow: BrowserWindow): void {
         const backupKey = deriveKey(masterPassword, backupSalt).key
         const encryptedPayload = encryptToString(JSON.stringify(snapshot), backupKey)
         const backup = {
-            format: 'password-keep.encrypted-vault-backup',
+            format: 'loclave.encrypted-vault-backup',
             version: 1,
             createdAt: snapshot.exportedAt,
             encryption: {
@@ -135,7 +135,7 @@ export function registerSettingsHandlers(mainWindow: BrowserWindow): void {
             title: 'Import encrypted vault backup',
             buttonLabel: 'Import Backup',
             filters: [
-                { name: 'Encrypted Vault Backup', extensions: ['pkvault'] },
+                { name: 'Loclave Vault Backup', extensions: ['locvault'] },
                 { name: 'JSON', extensions: ['json'] }
             ],
             properties: ['openFile']
@@ -389,8 +389,8 @@ function parseVaultBackup(fileContents: string, masterPassword: string): VaultBa
         throw new Error('Backup file is not valid JSON')
     }
 
-    if (!isRecord(backup) || backup.format !== 'password-keep.encrypted-vault-backup') {
-        throw new Error('Backup file is not a Password Keep encrypted vault backup')
+    if (!isRecord(backup) || backup.format !== 'loclave.encrypted-vault-backup') {
+        throw new Error('Backup file is not a Loclave encrypted vault backup')
     }
 
     if (!isRecord(backup.encryption)) {

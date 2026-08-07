@@ -1,7 +1,7 @@
 {
-    "name": "Lockstep",
+    "name": "loclave",
     "version": "1.0.0",
-    "description": "An Electron application with React and TypeScript",
+    "description": "A private, local-first password vault",
     "main": "./out/main/index.js",
     "author": "https://github.com/DevinDiehl",
     "homepage": "",
@@ -23,8 +23,8 @@
         "build:linux": "electron-vite build && electron-builder --linux"
     },
     "build": {
-        "appId": "com.yourapp.Lockstep",
-        "productName": "Lockstep",
+        "appId": "com.devindiehl.loclave",
+        "productName": "Loclave",
         "icon": "resources/icon",
         "directories": {
             "output": "dist"
