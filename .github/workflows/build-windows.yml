@@ -1,0 +1,72 @@
+name: Build Windows installer
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Windows dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build Windows x64 installer
+        run: npm run build:win
+
+      - name: Validate packaged native modules
+        shell: pwsh
+        run: |
+          $nativeModules = Get-ChildItem dist/win-unpacked -Recurse -Filter *.node
+          if ($nativeModules.Count -eq 0) {
+            throw 'No native Node modules were packaged.'
+          }
+
+          $foreignModules = $nativeModules | Where-Object {
+            $_.FullName -match 'darwin|linux'
+          }
+          if ($foreignModules) {
+            $foreignModules.FullName | Write-Error
+            throw 'Non-Windows native modules were packaged.'
+          }
+
+          foreach ($module in $nativeModules) {
+            $stream = [System.IO.File]::OpenRead($module.FullName)
+            try {
+              $first = $stream.ReadByte()
+              $second = $stream.ReadByte()
+            } finally {
+              $stream.Dispose()
+            }
+
+            if ($first -ne 0x4D -or $second -ne 0x5A) {
+              throw "$($module.FullName) is not a Windows PE binary."
+            }
+          }
+
+          Write-Host "Validated $($nativeModules.Count) Windows native modules."
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: Loclave-Windows-x64
+          path: |
+            dist/Loclave Setup *.exe
+            dist/Loclave Setup *.exe.blockmap
+          if-no-files-found: error
+          retention-days: 14
